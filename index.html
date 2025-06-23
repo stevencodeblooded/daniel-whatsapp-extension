@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/index.css" rel="stylesheet">
+</head>
+
+<body>
+    <!-- Authentication Modal -->
+    <div class="modal fade" id="authModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"> <img src="images/Header Logo_noBg.png" /> </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" style="display: none;"></button>
+                </div>
+                
+                <div class="modal-body">
+                    <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
+                        <li class="nav-item">
+                            <button class="nav-link active" id="pills-login-tab" data-bs-toggle="pill"
+                                data-bs-target="#pills-login">Login</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" id="pills-register-tab" data-bs-toggle="pill"
+                                data-bs-target="#pills-register">Register</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="pills-login">
+                            <form id="loginForm">
+                                <div class="mb-3">
+                                    <label>Email</label>
+                                    <input type="email" class="form-control" id="loginEmail" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label>Password</label>
+                                    <input type="password" class="form-control" id="loginPassword" required>
+                                </div>
+                                <div id="loginError" class="alert alert-danger" style="display: none;"></div>
+                                <button type="submit" class="btn btn-primary w-100">Login</button>
+                            </form>
+                        </div>
+
+                        <div class="tab-pane fade" id="pills-register">
+                            <form id="registerForm">
+                                <div class="mb-3 w-100">
+                                    <label>Name</label>
+                                    <input type="text" class="form-control" id="registerName" required>
+                                </div>
+                                <div class="mb-3 w-100">
+                                    <label>Email</label>
+                                    <input type="email" class="form-control" id="registerEmail" required>
+                                </div>
+                                <div class="mb-3 w-100">
+                                    <label>Password</label>
+                                    <input type="password" class="form-control" id="registerPassword" required>
+                                </div>
+                                <div class="mb-3 w-100">
+                                    <label>Confirm Password</label>
+                                    <input type="password" class="form-control" id="confirmPassword" required>
+                                </div>
+                                <!-- <div class="mb-3 w-100">
+                                    <label>Subscription Plan</label>
+                                    <select class="form-control" id="subscriptionSelect" required>
+                                        <option value="">Loading subscription plans...</option>
+                                    </select>
+                                </div> -->
+                                <div id="registerError" class="alert alert-danger" style="display: none;"></div>
+                                <button type="submit" class="btn btn-primary w-100">Register</button>
+                            </form>
+
+                            <!-- Subscription Plans Table -->
+                            <!-- <div class="mt-4">
+                                <h5>Available Subscription Plans</h5>
+                                <div class="table-responsive">
+                                    <table class="table table-bordered table-hover" id="subscriptionPlansTable">
+                                        <thead class="table-primary">
+                                            <tr>
+                                                <th>Plan Name</th>
+                                                <th>Description</th>
+                                                <th>Features</th>
+                                                <th>Price</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td colspan="4" class="text-center">Loading subscription plans...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div> -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="mainContent" class="container">
+        <div class="row">
+            <div class="col">
+                <h5 class="modal-title"> <img width="400" src="images/Header Logo_noBg.png" /> </h5>
+            </div>
+
+            <div>
+                <div id="userInfo" class="d-flex justify-content-end mb-3" style="display: none;"></div>
+                    <span id="username" class="me-2"></span>
+                    <span id="subscriptionBadge" class="badge bg-secondary me-2">Free</span>
+                    <span id="subscriptionLoading" class="spinner-border spinner-border-sm text-primary me-2" role="status"
+                        style="display: none;"></span>
+                    <button id="logoutBtn" class="btn btn-sm btn-outline-danger">Logout</button>
+                </div>
+            </div>
+
+            <!-- Upgrade to Premium -->
+            <div class="row mb-3">
+                <div class="col-12">
+                    <div id="premiumUpgradeContainer" class="text-center mb-3">
+                        <button id="mainUpgradeToPremium" class="btn btn-primary">
+                            <i class="bi bi-star-fill me-1"></i> Upgrade to Premium - 300 ZAR/month
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <div id="freeMessages" class="alert alert-info d-flex justify-content-between align-items-center"
+                            style="display: flex;">
+                            <div class="text-center"> 
+                                <strong>Messages:</strong> <span id="remaining">192</span>/<span id="max">200</span> this month
+                            </div>
+                            <!-- <button id="upgradeToPremium" class="btn btn-sm btn-primary">Upgrade to Premium</button> -->
+                        </div>
+                    </div>
+                </div>
+                <div id="apiErrorBanner" class="alert alert-danger" style="display: none;">
+                    <strong>Connection Error: </strong><span id="apiErrorMessage">Unable to connect to server</span>
+                    <button type="button" class="btn-close float-end" aria-label="Close"
+                        onclick="document.getElementById('apiErrorBanner').style.display = 'none';"></button>
+                </div>
+            </div>
+        </div>
+
+        <ul class="nav nav-tabs nav-fill " id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="home-tab" data-bs-toggle="tab" data-bs-target="#home" type="button"
+                    role="tab">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor"
+                        class="bi bi-house-door" viewBox="0 0 16 16">
+                        <path
+                            d="M8.354 1.146a.5.5 0 0 0-.708 0l-6 6A.5.5 0 0 0 1.5 7.5v7a.5.5 0 0 0 .5.5h4.5a.5.5 0 0 0 .5-.5v-4h2v4a.5.5 0 0 0 .5.5H14a.5.5 0 0 0 .5-.5v-7a.5.5 0 0 0-.146-.354L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293L8.354 1.146zM2.5 14V7.707l5.5-5.5 5.5 5.5V14H10v-4a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5v4H2.5z" />
+                    </svg>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="report-tab" data-bs-toggle="tab" data-bs-target="#report" type="button"
+                    role="tab">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="23" height="23" fill="currentColor"
+                        class="bi bi-list-check" viewBox="0 0 16 16">
+                        <path fill-rule="evenodd"
+                            d="M5 11.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zM3.854 2.146a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0l-.5-.5a.5.5 0 1 1 .708-.708L2 3.293l1.146-1.147a.5.5 0 0 1 .708 0zm0 4a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0l-.5-.5a.5.5 0 1 1 .708-.708L2 7.293l1.146-1.147a.5.5 0 0 1 .708 0zm0 4a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0l-.5-.5a.5.5 0 0 1 .708-.708l.146.147 1.146-1.147a.5.5 0 0 1 .708 0z" />
+                    </svg>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings" type="button"
+                    role="tab">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor"
+                        class="bi bi-gear" viewBox="0 0 16 16">
+                        <path
+                            d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z" />
+                        <path
+                            d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115l.094-.319z" />
+                    </svg>
+                </button>
+            </li>
+        </ul>
+
+        
+        <div class="tab-content" id="myTabContent">
+
+
+            <div class="tab-pane fade show active" id="home" role="tabpanel">
+                <div class="container">
+                    <!-- Excel sheet input -->
+                    <div class="row shadow-sm p-3 mb-2 bg-body rounded">
+                        <div class="col">
+                            <div class="mb-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="23" height="23" fill="green"
+                                    class="bi bi-file-earmark-excel-fill" viewBox="0 0 16 16">
+                                    <path
+                                        d="M9.293 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4.707A1 1 0 0 0 13.707 4L10 .293A1 1 0 0 0 9.293 0zM9.5 3.5v-2l3 3h-2a1 1 0 0 1-1-1zM5.884 6.68 8 9.219l2.116-2.54a.5.5 0 1 1 .768.641L8.651 10l2.233 2.68a.5.5 0 0 1-.768.64L8 10.781l-2.116 2.54a.5.5 0 0 1-.768-.641L7.349 10 5.116 7.32a.5.5 0 1 1 .768-.64z" />
+                                </svg>
+                                <label for="formFile" class="form-label">Contacts Excel sheet</label>
+
+                                <input class="form-control form-control d-none" accept=".xlsx" type="file"
+                                    id="excel-sheet" required>
+                                <button id="excelBtn" class="form-control">Choose Numbers Sheet (.xlsx)</button>
+                                <div class="d-flex justify-content-between">
+                                    <!-- numbers column choose -->
+                                    <div id="numbersColumns" class="d-none">
+                                        <p style="margin-bottom:2px">Numbers Column:</p>
+                                        <div class="btn-group" role="group">
+                                            <input type="radio" class="btn-check" name="column" id="col_a"
+                                                autocomplete="off" checked>
+                                            <label class="btn btn-outline-primary" for="col_a">Column A</label>
+                                            <input type="radio" class="btn-check" name="column" id="col_b"
+                                                autocomplete="off">
+                                            <label class="btn btn-outline-primary" for="col_b">Column B</label>
+                                        </div>
+                                    </div>
+                                    <!-- excel file name -->
+                                    <p class="" id="sheetFileName" style="margin-bottom: 0;"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row shadow-sm p-3 mb-3 bg-body rounded">
+                        <div class="col">
+                            <!-- attachments input -->
+                            <div class="mb-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="23" height="23" fill="currentColor"
+                                    class="bi bi-images" viewBox="0 0 16 16">
+                                    <path d="M4.502 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z" />
+                                    <path
+                                        d="M14.002 13a2 2 0 0 1-2 2h-10a2 2 0 0 1-2-2V5A2 2 0 0 1 2 3a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v8a2 2 0 0 1-1.998 2zM14 2H4a1 1 0 0 0-1 1h9.002a2 2 0 0 1 2 2v7A1 1 0 0 0 15 11V3a1 1 0 0 0-1-1zM2.002 4a1 1 0 0 0-1 1v8l2.646-2.354a.5.5 0 0 1 .63-.062l2.66 1.773 3.71-3.71a.5.5 0 0 1 .577-.094l1.777 1.947V5a1 1 0 0 0-1-1h-10z" />
+                                </svg>
+                                <label for="formFileMultiple" class="form-label">
+                                    Attachments
+                                    <span id="attachmentLock" class="text-warning ms-1">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-lock-fill"
+                                            viewBox="0 0 16 16">
+                                            <path
+                                                d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" />
+                                        </svg>
+                                        <small>Premium Feature</small>
+                                    </span>
+                                </label>
+                                <button id="mediaBtn" class="form-control">Choose Attachment Files</button>
+                                <p id="mediaView"></p>
+                            </div>
+                            
+                            <!-- show bulk contact import limit -->
+                            <div class="mb-2">
+                                <small class="text-muted" id="contactLimit">Free users: Max 50 contacts per batch | Premium users: Max 1000 contacts</small>
+                            </div>
+
+                            <!-- Numbers Input Textarea -->
+                            <div class="mb-3">
+                                <label for="numbersTextarea" class="form-label">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                                        class="bi bi-telephone" viewBox="0 0 16 16">
+                                        <path
+                                            d="M3.654 1.328a.678.678 0 0 0-1.015-.063L1.605 2.3c-.483.484-.661 1.169-.45 1.77a17.568 17.568 0 0 0 4.168 6.608 17.569 17.569 0 0 0 6.608 4.168c.601.211 1.286.033 1.77-.45l1.034-1.034a.678.678 0 0 0-.063-1.015l-2.307-1.794a.678.678 0 0 0-.58-.122l-2.19.547a1.745 1.745 0 0 1-1.657-.459L5.482 8.062a1.745 1.745 0 0 1-.46-1.657l.548-2.19a.678.678 0 0 0-.122-.58L3.654 1.328zM1.884.511a1.745 1.745 0 0 1 2.612.163L6.29 2.98c.329.423.445.974.315 1.494l-.547 2.19a.678.678 0 0 0 .178.643l2.457 2.457a.678.678 0 0 0 .644.178l2.189-.547a1.745 1.745 0 0 1 1.494.315l2.306 1.794c.829.645.905 1.87.163 2.611l-1.034 1.034c-.74.74-1.846 1.065-2.877.702a18.634 18.634 0 0 1-7.01-4.42 18.634 18.634 0 0 1-4.42-7.009c-.362-1.03-.037-2.137.703-2.877L1.885.511z" />
+                                    </svg>
+                                    Enter Phone Numbers (comma separated)
+                                </label>
+                                <textarea class="form-control" id="numbersTextarea" rows="2"
+                                    placeholder="e.g., 1234567890, 0987654321, 1122334455"></textarea>
+                                <small class="text-muted">Enter numbers here to override Excel sheet data</small>
+                            </div>
+
+                            <!-- Add Paystack modal for payments -->
+                            <div class="modal fade" id="paystackModal" tabindex="-1" aria-labelledby="paystackModalLabel" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title" id="paystackModalLabel">Upgrade to Premium</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="card mb-3">
+                                                <div class="card-header bg-primary text-white">
+                                                    <h5 class="mb-0">Standard Paid Tier - 300 ZAR/month</h5>
+                                                </div>
+                                                <div class="card-body">
+                                                    <ul class="list-group list-group-flush">
+                                                        <li class="list-group-item d-flex align-items-center">
+                                                            <span class="me-2">✅</span> Unlimited messages per month
+                                                        </li>
+                                                        <li class="list-group-item d-flex align-items-center">
+                                                            <span class="me-2">✅</span> Media attachments (images, videos, PDFs)
+                                                        </li>
+                                                        <li class="list-group-item d-flex align-items-center">
+                                                            <span class="me-2">✅</span> Upload up to 1,000 contacts per batch
+                                                        </li>
+                                                        <li class="list-group-item d-flex align-items-center">
+                                                            <span class="me-2">✅</span> Priority support
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                            <div class="d-grid gap-2">
+                                                <button id="payWithPaystack" class="btn btn-success">
+                                                    Pay with Paystack
+                                                </button>
+                                                <!-- <button class="btn btn-info" id="verifyPaymentBtn">
+                                                    Already Paid? Verify Payment
+                                                </button> -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Payment Verification Modal -->
+                            <div class="modal fade" id="verifyPaymentModal" tabindex="-1" aria-labelledby="verifyPaymentModalLabel" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title" id="verifyPaymentModalLabel">Verify Payment</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="alert alert-info mb-3">
+                                                <p><strong>Payment Reference Required</strong></p>
+                                                <p>Please enter the payment reference code you received after completing your payment.</p>
+                                                <p><small>Note: If you completed payment in another tab, we'll try to detect your reference code automatically.</small>
+                                                </p>
+                                            </div>
+                                            <form id="verifyPaymentForm">
+                                                <div class="mb-3">
+                                                    <label for="paymentReference" class="form-label">Payment Reference</label>
+                                                    <input type="text" class="form-control" id="paymentReference" placeholder="Enter reference code" required>
+                                                </div>
+                                                <div id="verifyPaymentError" class="alert alert-danger" style="display: none;"></div>
+                                                <div id="verifyPaymentSuccess" class="alert alert-success" style="display: none;"></div>
+                                                <div class="d-grid">
+                                                    <button type="submit" class="btn btn-primary" id="verifyPaymentBtn">Verify Payment</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Message Box -->
+                            <button id="addName" class="btn btn-sm btn-outline-primary">Add Name</button>
+                            <div class="mb-2 input-group">
+                                <button class="btn btn-secondary input-group-addon" id="emoji">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor"
+                                        class="bi bi-emoji-heart-eyes" viewBox="0 0 16 16">
+                                        <path
+                                            d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z" />
+                                        <path
+                                            d="M11.315 10.014a.5.5 0 0 1 .548.736A4.498 4.498 0 0 1 7.965 13a4.498 4.498 0 0 1-3.898-2.25.5.5 0 0 1 .548-.736h.005l.017.005.067.015.252.055c.215.046.515.108.857.169.693.124 1.522.242 2.152.242.63 0 1.46-.118 2.152-.242a26.58 26.58 0 0 0 1.109-.224l.067-.015.017-.004.005-.002zM4.756 4.566c.763-1.424 4.02-.12.952 3.434-4.496-1.596-2.35-4.298-.952-3.434zm6.488 0c1.398-.864 3.544 1.838-.952 3.434-3.067-3.554.19-4.858.952-3.434z" />
+                                    </svg>
+                                </button>
+                                <textarea class="form-control" id="messagebox" rows="4"
+                                    placeholder="Type your message here..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Report Tab -->
+            <div class="tab-pane fade" id="report" role="tabpanel">
+                <div class="container">
+                    <div class="row">
+                        <div class="col">
+                            <table class="table" id="reportTable">
+                                <thead class="text-center">
+                                    <tr>
+                                        <th scope="col">Name</th>
+                                        <th scope="col">Phone</th>
+                                        <th scope="col">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="text-center">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Settings Tab -->
+            <div class="tab-pane fade" id="settings" role="tabpanel">
+                <div class="container ps-5 pe-5">
+                    <!-- Sending Limit options -->
+                    <div class="row mt-4">
+                        <div class="hstack gap-2 w-75">
+                            <span>Send </span>
+                            <span id="messagesBadge" class="badge bg-secondary">50</span>
+                            <span> Every </span>
+                            <input id="minutes" style="width:50px;font-size: small;"
+                                class="form-control h-75 text-center" type="number" value="30">
+                            <span> Minutes</span>
+                        </div>
+                        <input type="range" class="form-range" min="10" max="100" step="10" id="messagesRange" value=50>
+                    </div>
+                    <hr class="mb-4 mt-4">
+                    <!-- Attachments & Text sending order -->
+                    <div id="sendingOrder" class="row">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="sendingOrder" id="textFirst" checked>
+                            <label class="form-check-label" for="textFirst">
+                                Send Text First
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="sendingOrder" id="attachmentFirst">
+                            <label class="form-check-label" for="attachmentFirst">
+                                Send Attachments First
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="sendingOrder" id="caption">
+                            <label class="form-check-label" for="caption">
+                                Send Text as Caption
+                            </label>
+                        </div>
+                    </div>
+                    <hr class="mb-4 mt-4">
+                    <!-- Delay between messages -->
+                    <div class="row mt-4">
+                        <div class="w-90">
+                            <p class="mb-2">Set random delay after every message</p>
+                            <div class="hstack gap-2 w-75">
+                                <span> from</span>
+                                <input id="minDelay" style="width:50px;font-size: small;"
+                                    class="form-control h-50 text-center" type="number" value="2">
+                                <span> to </span>
+                                <input id="maxDelay" style="width:50px;font-size: small;"
+                                    class="form-control h-50 text-center" type="number" value="5">
+                                <span> Seconds</span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Add this to the settings tab -->
+                    <hr class="mb-4 mt-4">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="debugModeToggle">
+                        <label class="form-check-label" for="debugModeToggle">Debug Mode</label>
+                        <small class="text-muted d-block">Enables additional logging for troubleshooting</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <footer id="footer" class="footer">
+        <div class="d-flex justify-content-between w-100">
+            <button class="btn btn-success" id="sendBtn">Start sending</button>
+            <button class="btn btn-warning" id="clearBtn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash-fill"
+                    viewBox="0 0 16 16">
+                    <path
+                        d="M2.5 1a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1H3v9a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V4h.5a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H10a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1H2.5zm3 4a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-1 0v-7a.5.5 0 0 1 .5-.5zM8 5a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-1 0v-7A.5.5 0 0 1 8 5zm3 .5v7a.5.5 0 0 1-1 0v-7a.5.5 0 0 1 1 0z">
+                    </path>
+                </svg>
+                Clear Data
+            </button>
+        </div>
+        <!-- Progress Bar -->
+        <div class="pe-4 ps-4">
+            <div class="progress">
+                <div class="progress-bar bg-success progress-bar-striped progress-bar-animated" role="progressbar"
+                    style="width: 0%" id="progressBar">0%</div>
+            </div>
+        </div>
+    </footer>
+    </div>
+
+    <script src="JS/whatsapp-utils.js"></script>
+    <script src="JS/inline-scripts.js"></script>
+    <script src="JS/popper.min.js"></script>
+    <script src="JS/bootstrap.min.js"></script>
+    <script src="JS/jquery.min.js"></script>
+    <script src="JS/vanillaEmojiPicker.js"></script>
+    <script src="JS/read-excel-file.min.js"></script>
+    <script src="JS/sweetalert2.all.min.js"></script>
+    <script src="JS/popup.js"></script>
+</body>
+
+</html>

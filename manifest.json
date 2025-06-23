@@ -1,0 +1,39 @@
+{
+  "name": "SwiftMsg",
+  "description": "Send dynamic messages to your customers automatically through WhatsApp Web.",
+  "version": "1.0.8",
+  "manifest_version": 3,
+  "action": {
+    "default_title": "SwiftMsg"
+  },
+  "icons": {
+    "48": "images/48.png",
+    "128": "images/128.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+ "content_scripts": [
+    {
+      "matches": [
+        "https://web.whatsapp.com/",
+        "https://web.whatsapp.com/*"
+      ],
+      "js": ["country_codes.js", "whatsapp.js", "main.js"],
+      "run_at": "document_idle"
+    }
+],
+  "permissions": ["tabs", "storage", "scripting"],
+  "host_permissions": [
+    "https://script.google.com/*",
+    "https://*.whatsapp.com/*",
+    "http://swiftmsg.southafricanorth.cloudapp.azure.com/api*",
+    "http://localhost:80/api*"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["popup.js"],
+      "matches": ["https://script.google.com/*"]
+    }
+  ]
+}

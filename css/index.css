@@ -1,0 +1,297 @@
+/* Footer styling */
+.footer {
+  position: sticky;
+  bottom: 0;
+  background-color: #fff;
+  padding: 15px;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  z-index: 100;
+}
+
+/* Button container styling */
+.footer .d-flex {
+  width: 100%;
+  gap: 10px;
+}
+
+/* Individual button styling */
+.footer .btn {
+  padding: 10px 20px;
+  font-weight: 500;
+  min-width: 120px;
+  transition: all 0.3s ease;
+}
+
+/* Success button hover effect */
+.footer .btn-success:hover {
+  background-color: #218838;
+  border-color: #1e7e34;
+}
+
+/* Warning button hover effect */
+.footer .btn-warning:hover {
+  background-color: #e0a800;
+  border-color: #d39e00;
+}
+
+/* Progress bar container */
+.footer .progress {
+  margin-top: 10px;
+  height: 10px;
+}
+
+/* Progress bar animation */
+.footer .progress-bar {
+  transition: width 0.5s ease;
+}
+
+/* For default extension width around 600px */
+@media (max-width: 650px) {
+  .footer .btn {
+    flex: 1;
+    white-space: nowrap;
+    font-size: 14px;
+    padding: 8px 10px;
+  }
+  
+  .footer .d-flex {
+    justify-content: space-between;
+  }
+}
+
+/* For wider views */
+@media (min-width: 651px) {
+  .footer .d-flex {
+    justify-content: center;
+    padding: 0 10%;
+  }
+  
+  .footer .btn {
+    min-width: 180px;
+    padding: 12px 25px;
+    font-size: 16px;
+  }
+}
+
+/* Fix for scrollable content so footer stays at bottom */
+#mainContent {
+  /* Prevent horizontal scroll */
+  max-width: 100%;
+  overflow-x: hidden;
+  padding: 15px 20px; /* Improved container padding */
+  box-sizing: border-box;
+}
+
+/* Ensure the tab content can scroll if needed */
+.tab-content {
+  overflow-y: auto;
+  max-height: calc(100vh - 200px);
+  /* Prevent horizontal scroll in tab content */
+  overflow-x: hidden;
+  padding: 15px 0; /* Add padding to tab content */
+}
+
+/* Fix the gap between user info and message container */
+.row.mb-3 {
+  margin-top: 10px; /* Reduced top margin */
+}
+
+/* Fix specific layout for the user info and message counter area */
+#userInfo {
+  margin-bottom: 5px !important; /* Override Bootstrap's margin */
+}
+
+/* Reduce space below header */
+.container > .row:first-child {
+  margin-bottom: 5px;
+}
+
+/* Reduce space in message container */
+#freeMessages {
+  padding: 8px 15px; /* Smaller padding */
+  margin-bottom: 10px; /* Reduced bottom margin */
+}
+
+/* Ensure body doesn't have extra margins causing scrollbars */
+html, body {
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+*, *:before, *:after {
+  box-sizing: inherit;
+}
+
+/* Fix container width to prevent overflow */
+.container {
+  max-width: 100%;
+  padding-left: 15px !important; /* Use important to override Bootstrap */
+  padding-right: 15px !important;
+  box-sizing: border-box;
+}
+
+/* Make sure all column alignments are consistent */
+.col-12, .col {
+  padding-left: 15px !important;
+  padding-right: 15px !important;
+}
+
+/* Ensure modal content is properly aligned */
+.modal-body {
+  padding: 20px 25px;
+}
+
+/* Better premium button styling */
+#mainUpgradeToPremium {
+  padding: 10px 20px;
+  font-weight: 600;
+  margin: 10px 0;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+#premiumUpgradeContainer {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 10px 15px;
+  margin: 10px 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Fix alignment in shadow boxes */
+.shadow-sm {
+  padding: 15px !important;
+  margin-bottom: 15px !important;
+}
+
+/* Improve form control spacing */
+.form-control, .input-group {
+  margin-bottom: 10px;
+}
+
+/* Fix alignment in Paystack modal */
+.modal-dialog .card-header {
+  padding: 12px 15px;
+}
+
+.modal-dialog .card-body {
+  padding: 15px;
+}
+
+/* Fix list item alignment */
+.list-group-item {
+  padding: 12px 15px;
+}
+
+/* Fix settings tab padding */
+#settings.tab-pane {
+  padding: 15px;
+}
+
+/* More responsive container padding for smaller screens */
+@media (max-width: 500px) {
+  .container, #mainContent {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+  
+  .col-12, .col {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+  
+  .shadow-sm {
+    padding: 10px !important;
+  }
+}
+
+/* Fix for modal backdrop affecting padding */
+body.modal-open {
+  padding-right: 0 !important;
+  overflow: auto !important;
+}
+
+/* Ensure modal backdrops are properly removed */
+.modal-backdrop {
+  z-index: 1040 !important;
+}
+
+/* Clean up after modal closes */
+.modal {
+  padding-right: 0 !important;
+}
+
+/* Force cleanup of modal effects when hidden */
+.modal.fade.hide, .modal.fade.in {
+  padding-right: 0 !important;
+}
+
+/* Fix modal closing animation */
+.modal.fade .modal-dialog {
+  -webkit-transform: none !important;
+  transform: none !important;
+  transition: opacity 0.15s linear !important;
+}
+
+/* Ensure the background doesn't shift when modal opens */
+html {
+  overflow-y: scroll !important;
+}
+
+/* Add overlay to block UI during authentication */
+.not-authenticated #mainContent {
+  filter: blur(5px);
+  pointer-events: none;
+}
+
+.auth-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  z-index: 1050;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.auth-overlay-message {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+  max-width: 80%;
+}
+
+/* Remove padding shifts when modals open/close */
+.modal-open .modal {
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 0 !important;
+}
+
+/* Ensure all padding remains consistent when scrollbars appear/disappear */
+.modal-open.modal-padding-fix {
+  padding-right: 0 !important;
+}
+
+/* Fixes for consistent spacing in modal and dialog elements */
+.modal-dialog {
+  margin: 1.75rem auto;
+  max-width: 500px;
+  width: auto;
+}
+
+/* Fix for container behavior in small screens */
+@media (max-width: 576px) {
+  .container {
+    width: 100%;
+    max-width: none;
+  }
+}

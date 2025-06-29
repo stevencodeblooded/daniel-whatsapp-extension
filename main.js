@@ -1,9 +1,18 @@
 // At the top of main.js
-const API_URL =
-  window.appConfig && window.appConfig.apiUrl
-    ? window.appConfig.apiUrl
-    : "http://localhost:80/api";
-    // : "http://swiftmsg.southafricanorth.cloudapp.azure.com/api";
+// const API_URL =
+//   window.appConfig && window.appConfig.apiUrl
+//     ? window.appConfig.apiUrl
+//     : "http://swiftmsg.southafricanorth.cloudapp.azure.com/api";
+
+// Properly get API URL from storage
+let API_URL = "http://localhost:80/api"; // default
+
+chrome.storage.local.get("appConfig", (result) => {
+    if (result.appConfig && result.appConfig.apiUrl) {
+        API_URL = result.appConfig.apiUrl;
+        console.log('API URL loaded from config:', API_URL);
+    }
+});
 
 console.log('API URL:', API_URL);
 
@@ -289,23 +298,26 @@ async function fetchStorage(key) {
   return null;
 }
 
-// Function to check subscription status
 async function checkSubscription() {
   const authUser = await fetchStorage("authUser");
   const subscription = await fetchStorage("subscription");
-  
+
   if (!authUser || !authUser.token) {
     console.log("User not authenticated");
     return { canSend: false, isPremium: false };
   }
-  
-  // If we have cached subscription data, use it
-  if (subscription) {
-    const isPremium = subscription.status === 'active';
-    const canSend = isPremium || (subscription.messagesSent < subscription.messagesLimit);
-    return { canSend, isPremium };
+
+  // If we have cached subscription data, check if it's fresh (less than 5 minutes old)
+  if (subscription && subscription.lastChecked) {
+    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+    if (new Date(subscription.lastChecked).getTime() > fiveMinutesAgo) {
+      const isPremium = subscription.status === "active";
+      const canSend =
+        isPremium || subscription.messagesSent < subscription.messagesLimit;
+      return { canSend, isPremium };
+    }
   }
-  
+
   // Otherwise fetch from the server
   try {
     const response = await fetch(`${API_URL}/paystack/user-subscription`, {
@@ -315,41 +327,53 @@ async function checkSubscription() {
         "Content-Type": "application/json",
       },
     });
-    
+
     if (!response.ok) {
-      throw new Error("Failed to fetch subscription status");
+      if (response.status === 401) {
+        console.error("Authentication failed - token may be expired");
+        // Clear auth data and show login
+        await chrome.storage.local.remove("authUser");
+        checkAuthStatus();
+        return { canSend: false, isPremium: false };
+      }
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
-    
+
     const data = await response.json();
-    
+
     if (data.success) {
-      const isPremium = data.data.subscriptionStatus === 'active';
-      const canSend = isPremium || (data.data.messagesSent < data.data.messagesLimit);
-      
-      // Cache the subscription data
+      const isPremium = data.data.subscriptionStatus === "active";
+      const canSend =
+        isPremium || data.data.messagesSent < data.data.messagesLimit;
+
+      // Cache the subscription data with timestamp
       await chrome.storage.local.set({
         subscription: {
           status: data.data.subscriptionStatus,
-          messagesSent: data.data.messagesSent,
-          messagesLimit: data.data.messagesLimit,
+          messagesSent: data.data.messagesSent || 0,
+          messagesLimit: data.data.messagesLimit || 200,
           expiry: data.data.subscriptionExpiry,
+          lastChecked: new Date().toISOString(),
         },
       });
-      
+
       return { canSend, isPremium };
     }
-    
+
     return { canSend: false, isPremium: false };
   } catch (error) {
-  console.error("Error checking subscription:", error);
-  // Send error to popup for display
-  if (debug_mode) {
-    chrome.runtime.sendMessage({ 
-      message: "api_error", 
-      error: "Subscription check failed: " + error.message 
-    });
-  }
-  return { canSend: false, isPremium: false };
+    console.error("Error checking subscription:", error);
+
+    // If we have cached data, use it even if stale
+    if (subscription) {
+      const isPremium = subscription.status === "active";
+      const canSend =
+        isPremium || subscription.messagesSent < subscription.messagesLimit;
+      return { canSend, isPremium };
+    }
+
+    // Default to allowing free tier messages if we can't connect
+    return { canSend: true, isPremium: false };
   }
 }
 
@@ -408,15 +432,15 @@ async function incrementMessageCount() {
 async function startSending() {
   // First check subscription status
   const { canSend, isPremium } = await checkSubscription();
-  
+
   if (!canSend) {
-    chrome.runtime.sendMessage({ 
+    chrome.runtime.sendMessage({
       message: "Message limit reached",
-      type: "limit"
+      type: "limit",
     });
     return;
   }
-  
+
   let sheetData = await fetchStorage("sheetData");
   let sendingOrder = await fetchStorage("sendingOrder");
   let messageContent = await fetchStorage("messageContent");
@@ -457,6 +481,19 @@ async function startSending() {
   }
 
   // SENDING LOOP START
+
+  // Store the original files if media is selected
+  let originalMediaFiles = null;
+  const mediaInput = document.getElementById("mediaInput");
+  if (mediaInput && mediaInput.files && mediaInput.files.length > 0) {
+    // Create a copy of the files
+    const dataTransfer = new DataTransfer();
+    for (let i = 0; i < mediaInput.files.length; i++) {
+      dataTransfer.items.add(mediaInput.files[i]);
+    }
+    originalMediaFiles = dataTransfer.files;
+  }
+
   for (i; i < numbersToProcess.length; i++) {
     // STOP BTN CLICK CHECK
     if (await fetchStorage("pendingStop")) {
@@ -524,13 +561,13 @@ async function startSending() {
         chrome.runtime.sendMessage({ message: "stopped sending" });
         break;
       }
-      
+
       // Re-check subscription status for each message to ensure we're under limits
       const currentSubscription = await checkSubscription();
       if (!currentSubscription.canSend) {
-        chrome.runtime.sendMessage({ 
+        chrome.runtime.sendMessage({
           message: "Message limit reached during sending",
-          type: "limit"
+          type: "limit",
         });
         break;
       }
@@ -543,16 +580,34 @@ async function startSending() {
           if (is_sent) {
             // Increment message count for free users
             await incrementMessageCount();
-            
+            sent++; // Increment sent counter
+
+            // Wait for text to be sent
+            await delay(2000);
+
             // SEND MEDIA only if premium
             if (isPremium) {
               const mediaInput = document.getElementById("mediaInput");
-              if (mediaInput && mediaInput.files && mediaInput.files.length > 0) {
+              if (mediaInput && originalMediaFiles) {
+                // Restore the files before each send
+                mediaInput.files = originalMediaFiles;
+              }
+              if (
+                mediaInput &&
+                mediaInput.files &&
+                mediaInput.files.length > 0
+              ) {
+                // Ensure WhatsApp is ready for media
+                await ensureWhatsAppReady();
+
                 // Check file type to determine which send method to use
                 const fileType = mediaInput.files[0].type;
                 console.log("File type:", fileType);
-                
-                if (fileType.startsWith('image/') || fileType.startsWith('video/')) {
+
+                if (
+                  fileType.startsWith("image/") ||
+                  fileType.startsWith("video/")
+                ) {
                   console.log("Sending image/video after text...");
                   await wa.sendImage(mediaInput);
                 } else {
@@ -567,30 +622,72 @@ async function startSending() {
         if (!debug_mode) {
           // SEND MEDIA only if premium
           let mediaSuccess = false;
-          
+
           if (isPremium) {
             const mediaInput = document.getElementById("mediaInput");
+            if (mediaInput && originalMediaFiles) {
+              // Restore the files before each send
+              mediaInput.files = originalMediaFiles;
+            }
             if (mediaInput && mediaInput.files && mediaInput.files.length > 0) {
               // Check file type to determine which send method to use
               const fileType = mediaInput.files[0].type;
-              
-              if (fileType.startsWith('image/') || fileType.startsWith('video/')) {
+
+              if (
+                fileType.startsWith("image/") ||
+                fileType.startsWith("video/")
+              ) {
                 console.log("Sending image/video before text...");
                 mediaSuccess = await wa.sendImage(mediaInput);
               } else {
                 console.log("Sending document before text...");
                 mediaSuccess = await wa.sendDocument(mediaInput);
               }
+
+              // Wait for media to be fully sent
+              await delay(3000);
+
+              // Only proceed if media was sent successfully
+              if (mediaSuccess) {
+                // Ensure WhatsApp is ready for text input
+                await ensureWhatsAppReady();
+
+                // SEND TEXT
+                is_sent = await wa.sendText(message);
+
+                if (is_sent) {
+                  // Increment message count for free users
+                  await incrementMessageCount();
+                  sent++; // Increment sent counter
+                }
+              } else {
+                console.error("Failed to send media, trying text only");
+                // Try to send text anyway
+                await ensureWhatsAppReady();
+                is_sent = await wa.sendText(message);
+
+                if (is_sent) {
+                  await incrementMessageCount();
+                  sent++;
+                }
+              }
+            } else {
+              // No media files, just send text
+              is_sent = await wa.sendText(message);
+
+              if (is_sent) {
+                await incrementMessageCount();
+                sent++;
+              }
             }
-          }
-          
-          // SEND TEXT
-          await delay(randint(1500, 3000)); // wait for attachment view to disappear
-          is_sent = await wa.sendText(message);
-          
-          if (is_sent) {
-            // Increment message count for free users
-            await incrementMessageCount();
+          } else {
+            // Free users - just send text
+            is_sent = await wa.sendText(message);
+
+            if (is_sent) {
+              await incrementMessageCount();
+              sent++;
+            }
           }
         }
       } else {
@@ -598,11 +695,18 @@ async function startSending() {
           // SEND MEDIA WITH CAPTION (Premium users only)
           if (isPremium) {
             const mediaInput = document.getElementById("mediaInput");
+            if (mediaInput && originalMediaFiles) {
+              // Restore the files before each send
+              mediaInput.files = originalMediaFiles;
+            }
             if (mediaInput && mediaInput.files && mediaInput.files.length > 0) {
               // Check file type to determine which send method to use
               const fileType = mediaInput.files[0].type;
-              
-              if (fileType.startsWith('image/') || fileType.startsWith('video/')) {
+
+              if (
+                fileType.startsWith("image/") ||
+                fileType.startsWith("video/")
+              ) {
                 console.log("Sending image/video with caption...");
                 is_sent = await wa.sendImage(mediaInput, true, message);
               } else {
@@ -616,10 +720,11 @@ async function startSending() {
             // Free users just send text
             is_sent = await wa.sendText(message);
           }
-          
+
           if (is_sent) {
             // Increment message count for free users
             await incrementMessageCount();
+            sent++; // Increment sent counter
           }
         }
       }
@@ -653,6 +758,7 @@ async function startSending() {
     await delay(randint(minDelay * 1000, maxDelay * 1000));
     console.log("random delay end");
   }
+
   // SENDING LOOP END ***
   // CHECK IF STOPPED OR FINISHED
   if (await fetchStorage("pendingStop")) {
@@ -684,4 +790,46 @@ async function getLoggedInWhatsApp() {
   }
 }
 
+async function delay(t = Number) {
+  return new Promise((resolve) => setTimeout(resolve, t));
+}
+
+async function ensureWhatsAppReady() {
+  // Wait for any modals or overlays to disappear
+  await delay(1000);
+
+  // Check if there's an attachment preview modal open and close it
+  const closeButtons = document.querySelectorAll(
+    '[data-testid="x-viewer"] button, [aria-label="Close"], [data-icon="x"]'
+  );
+  for (const btn of closeButtons) {
+    if (btn && btn.offsetParent !== null) {
+      // Check if visible
+      btn.click();
+      await delay(500);
+    }
+  }
+
+  // Click outside any open modals to ensure they close
+  const backdrop = document.querySelector(
+    '.overlay, [data-testid="popup-backdrop"]'
+  );
+  if (backdrop) {
+    backdrop.click();
+    await delay(500);
+  }
+
+  // Ensure the main text input is available and focused
+  await wa.isElementVisible(wa.textInput, 1000);
+
+  // Find and focus the text input
+  const textInput = document.querySelector(
+    '[contenteditable="true"][data-tab="10"]'
+  );
+  if (textInput) {
+    textInput.click();
+    textInput.focus();
+    await delay(500);
+  }
+}
 //////////////////////////////////////////////////////////////////////

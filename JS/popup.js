@@ -98,6 +98,57 @@ document
   .querySelector("#paystackModal .modal-body")
   .appendChild(showVerifyPaymentBtn);
 
+// Add collapsible section functionality
+document.addEventListener('DOMContentLoaded', function() {
+  // Initialize collapsible sections
+  const collapsibleHeaders = document.querySelectorAll('.collapsible-header');
+  
+  collapsibleHeaders.forEach(header => {
+      header.addEventListener('click', function() {
+          const section = this.closest('.collapsible-section');
+          const content = section.querySelector('.collapsible-content');
+          const icon = this.querySelector('.collapse-icon');
+          
+          if (section.classList.contains('collapsed')) {
+              section.classList.remove('collapsed');
+              content.style.display = 'block';
+              icon.style.transform = 'rotate(0deg)';
+          } else {
+              section.classList.add('collapsed');
+              content.style.display = 'none';
+              icon.style.transform = 'rotate(-90deg)';
+          }
+      });
+  });
+  
+  // Add debug mode toggle
+  const debugModeToggle = document.getElementById('debugModeToggle');
+  if (debugModeToggle) {
+      // Load saved debug mode state
+      chrome.storage.local.get('debugMode', (result) => {
+          if (result.debugMode) {
+              debugModeToggle.checked = true;
+          }
+      });
+      
+      // Save debug mode state when changed
+      debugModeToggle.addEventListener('change', function() {
+          chrome.storage.local.set({ debugMode: this.checked });
+      });
+  }
+});
+
+// Add API error banner close button functionality
+const apiErrorClose = document.getElementById('apiErrorClose');
+if (apiErrorClose) {
+    apiErrorClose.addEventListener('click', function() {
+        const apiErrorBanner = document.getElementById('apiErrorBanner');
+        if (apiErrorBanner) {
+            apiErrorBanner.style.display = 'none';
+        }
+    });
+}
+
 // onstart updating UI with storage data
 window.addEventListener("load", async () => {
   // Check authentication status
@@ -1124,6 +1175,203 @@ mediaBtn.addEventListener("click", async () => {
   tempFileInput.click();
 });
 
+// Add drag and drop support for media files
+const mediaDropZone = document.getElementById('mediaBtn');
+if (mediaDropZone) {
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    mediaDropZone.addEventListener(eventName, preventDefaults, false);
+    document.body.addEventListener(eventName, preventDefaults, false);
+  });
+
+  function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  ['dragenter', 'dragover'].forEach(eventName => {
+    mediaDropZone.addEventListener(eventName, () => {
+      mediaDropZone.classList.add('drag-hover');
+    });
+  });
+
+  ['dragleave', 'drop'].forEach(eventName => {
+    mediaDropZone.addEventListener(eventName, () => {
+      mediaDropZone.classList.remove('drag-hover');
+    });
+  });
+
+  mediaDropZone.addEventListener('drop', async (e) => {
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      // Check authentication and premium status
+      const authUser = await fetchStorage("authUser");
+      if (!authUser || !authUser.token) {
+        Swal.fire({
+          title: "Authentication Required",
+          text: "Please log in to upload media",
+          icon: "warning",
+        });
+        showAuthModal();
+        return;
+      }
+
+      const subscription = await fetchStorage("subscription");
+      if (!subscription || subscription.status !== "active") {
+        Swal.fire({
+          title: "Premium Feature",
+          text: "Media attachments are only available for premium users",
+          icon: "info",
+          showCancelButton: true,
+          confirmButtonText: "Upgrade to Premium",
+          cancelButtonText: "Not Now",
+        }).then((result) => {
+          if (result.isConfirmed) {
+            paystackModal.show();
+          }
+        });
+        return;
+      }
+
+      // Process the dropped files
+      await processMediaFiles(files);
+    }
+  });
+}
+
+// Add drag and drop for Excel files
+const excelDropZone = document.getElementById('excelBtn');
+if (excelDropZone) {
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    excelDropZone.addEventListener(eventName, preventDefaults, false);
+  });
+
+  ['dragenter', 'dragover'].forEach(eventName => {
+    excelDropZone.addEventListener(eventName, () => {
+      excelDropZone.classList.add('drag-hover');
+    });
+  });
+
+  ['dragleave', 'drop'].forEach(eventName => {
+    excelDropZone.addEventListener(eventName, () => {
+      excelDropZone.classList.remove('drag-hover');
+    });
+  });
+
+  excelDropZone.addEventListener('drop', async (e) => {
+    const files = e.dataTransfer.files;
+    if (files.length > 0 && (files[0].name.endsWith('.xlsx') || files[0].name.endsWith('.xls') || files[0].name.endsWith('.csv'))) {
+      // Process the Excel file
+      excelInput.files = files;
+      excelInput.dispatchEvent(new Event('change'));
+    }
+  });
+}
+
+// Extract media processing logic into a reusable function
+async function processMediaFiles(files) {
+  // File size validation
+  const VIDEO_LIMIT_MB = 64;
+  const GENERAL_LIMIT_MB = 100;
+  const VIDEO_LIMIT_BYTES = VIDEO_LIMIT_MB * 1024 * 1024;
+  const GENERAL_LIMIT_BYTES = GENERAL_LIMIT_MB * 1024 * 1024;
+
+  const oversizedFiles = [];
+  Array.from(files).forEach((file) => {
+    const limitBytes = file.type.startsWith("video/")
+      ? VIDEO_LIMIT_BYTES
+      : GENERAL_LIMIT_BYTES;
+    const limitMB = file.type.startsWith("video/")
+      ? VIDEO_LIMIT_MB
+      : GENERAL_LIMIT_MB;
+
+    if (file.size > limitBytes) {
+      oversizedFiles.push({
+        name: file.name,
+        size: (file.size / (1024 * 1024)).toFixed(2),
+        limit: limitMB,
+        type: file.type.startsWith("video/") ? "Video" : "File",
+      });
+    }
+  });
+
+  if (oversizedFiles.length > 0) {
+    let oversizedList = "";
+    oversizedFiles.forEach((file) => {
+      oversizedList += `<li>${file.name} (${file.size} MB) - exceeds ${file.type} limit of ${file.limit} MB</li>`;
+    });
+
+    Swal.fire({
+      title: "Files Too Large",
+      html: `The following file(s) exceed WhatsApp's size limits:<br><ul>${oversizedList}</ul>`,
+      icon: "error",
+    });
+    return;
+  }
+
+  try {
+    // Convert files to base64 for transfer
+    const fileDataArray = await Promise.all(
+      Array.from(files).map(async (file) => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            resolve({
+              name: file.name,
+              type: file.type,
+              size: file.size,
+              data: reader.result,
+            });
+          };
+          reader.onerror = () => {
+            reject(new Error(`Failed to read file: ${file.name}`));
+          };
+          reader.readAsDataURL(file);
+        });
+      })
+    );
+
+    // Store metadata
+    await chrome.storage.local.set({
+      mediaSelected: true,
+      mediaFilesMetadata: Array.from(files).map((file) => ({
+        name: file.name,
+        type: file.type,
+        size: file.size,
+      })),
+    });
+
+    // Send to content script
+    const tabs = await chrome.tabs.query({
+      url: "https://web.whatsapp.com/*",
+    });
+    if (tabs && tabs.length > 0) {
+      chrome.tabs.sendMessage(tabs[0].id, {
+        message: "transfer_media_files",
+        fileData: fileDataArray,
+      });
+    }
+
+    // Update UI
+    let filesText = "";
+    Array.from(files).forEach((file) => {
+      filesText += `${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB), `;
+    });
+    filesText = filesText.slice(0, -2);
+    mediaFileName.innerText =
+      filesText.length > 50 ? filesText.substring(0, 50) + " ..." : filesText;
+
+    let result = await chrome.storage.local.get("windowID");
+    chrome.windows.update(result.windowID, { focused: true });
+  } catch (error) {
+    console.error("Error processing files:", error);
+    Swal.fire({
+      title: "File Processing Error",
+      text: "There was an error processing the selected files.",
+      icon: "error",
+    });
+  }
+}
+
 //event listeners for update premium and payment
 if (upgradeToPremiumBtn) {
   upgradeToPremiumBtn.addEventListener("click", (e) => {
@@ -1276,12 +1524,19 @@ if (excelBtn) {
     }
   });
 }
+
 // Excel Sheet Input Changed
 excelInput.addEventListener("change", async () => {
+  // Check if file exists
+  if (!excelInput.files || excelInput.files.length === 0) {
+    return;
+  }
+
   // setting file name
   let filename = excelInput.files[0].name;
   chrome.storage.local.set({ sheetFileName: filename });
   excelFileName.innerText = filename;
+
   // showing columns radio buttons
   if (excelInput.files.length > 0) {
     numbersColumns.classList.remove("d-none");
@@ -1290,34 +1545,109 @@ excelInput.addEventListener("change", async () => {
       numbersColumns.classList.add("d-none");
     }
   }
+
   // reset progress bar
   progressBar.innerText = "0%";
   progressBar.dispatchEvent(new Event("change", { bubbles: true }));
+
   // reset report table
   let tbody = document.querySelector("#reportTable tbody");
   while (tbody.hasChildNodes()) {
     tbody.removeChild(tbody.lastChild);
   }
 
-  // Process sheet data with contact limit enforcement
-  readXlsxFile(excelInput.files[0]).then(async (rowsList) => {
-    let sheetData = [];
-    let numbersCol = await fetchStorage("column");
-    const contactLimit = (await fetchStorage("contactLimit")) || 50; // Default to free tier limit
+  const file = excelInput.files[0];
+  const fileExtension = filename.split(".").pop().toLowerCase();
 
-    if (rowsList.length > contactLimit) {
-      const subscription = await fetchStorage("subscription");
-      const isPremium = subscription && subscription.status === "active";
+  // Check if it's a CSV file
+  if (fileExtension === "csv") {
+    // Process CSV file
+    const reader = new FileReader();
+    reader.onload = async function (e) {
+      const text = e.target.result;
+      const rows = text
+        .split("\n")
+        .map((row) => row.split(",").map((cell) => cell.trim()));
 
-      if (!isPremium) {
-        Swal.fire({
-          title: "Contact Limit Exceeded",
-          text: `Free users can only import up to ${contactLimit} contacts at once. Upgrade to premium for up to 1000 contacts.`,
-          icon: "warning",
-          showCancelButton: true,
-          confirmButtonText: "Upgrade to Premium",
-          cancelButtonText: "Use First 50 Contacts",
-        }).then((result) => {
+      // Remove empty rows
+      const rowsList = rows.filter((row) => row.some((cell) => cell !== ""));
+
+      // Process the CSV data
+      let sheetData = [];
+      let numbersCol = await fetchStorage("column");
+      const contactLimit = (await fetchStorage("contactLimit")) || 50;
+
+      if (rowsList.length > contactLimit) {
+        const subscription = await fetchStorage("subscription");
+        const isPremium = subscription && subscription.status === "active";
+
+        if (!isPremium) {
+          const result = await Swal.fire({
+            title: "Contact Limit Exceeded",
+            text: `Free users can only import up to ${contactLimit} contacts at once. Upgrade to premium for up to 1000 contacts.`,
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonText: "Upgrade to Premium",
+            cancelButtonText: "Use First 50 Contacts",
+          });
+
+          if (result.isConfirmed) {
+            paystackModal.show();
+            return;
+          } else {
+            // Use only the first 50 contacts
+            rowsList.splice(contactLimit);
+          }
+        }
+      }
+
+      for (let i = 0; i < rowsList.length; i++) {
+        let phone = numbersCol === "b" ? rowsList[i][1] : rowsList[i][0];
+        // SKIP EMPTY ROWS
+        if (!phone) {
+          continue;
+        }
+        // CREATING SHEET DATA LIST
+        let rowObj = {
+          row: rowsList[i],
+          state: IDLE_STATE,
+        };
+        sheetData.push(rowObj);
+
+        // Respect the contact limit
+        if (sheetData.length >= contactLimit) {
+          break;
+        }
+      }
+
+      // Save to storage
+      chrome.storage.local.set({ sheetData: sheetData });
+      // clear the input to avoid data not changing when choosing same sheet
+      excelInput.files = new DataTransfer().files;
+    };
+
+    reader.readAsText(file);
+  } else {
+    // Process Excel file (.xlsx or .xls)
+    readXlsxFile(excelInput.files[0]).then(async (rowsList) => {
+      let sheetData = [];
+      let numbersCol = await fetchStorage("column");
+      const contactLimit = (await fetchStorage("contactLimit")) || 50;
+
+      if (rowsList.length > contactLimit) {
+        const subscription = await fetchStorage("subscription");
+        const isPremium = subscription && subscription.status === "active";
+
+        if (!isPremium) {
+          const result = await Swal.fire({
+            title: "Contact Limit Exceeded",
+            text: `Free users can only import up to ${contactLimit} contacts at once. Upgrade to premium for up to 1000 contacts.`,
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonText: "Upgrade to Premium",
+            cancelButtonText: "Use First 50 Contacts",
+          });
+
           if (result.isConfirmed) {
             paystackModal.show();
             return;
@@ -1325,34 +1655,34 @@ excelInput.addEventListener("change", async () => {
             // Use only the first 50 contacts
             rowsList = rowsList.slice(0, contactLimit);
           }
-        });
+        }
       }
-    }
 
-    for (let i = 0; i < rowsList.length; i++) {
-      let phone = numbersCol === "b" ? rowsList[i][1] : rowsList[i][0];
-      // SKIP EMPTY ROWS
-      if (!phone) {
-        continue;
+      for (let i = 0; i < rowsList.length; i++) {
+        let phone = numbersCol === "b" ? rowsList[i][1] : rowsList[i][0];
+        // SKIP EMPTY ROWS
+        if (!phone) {
+          continue;
+        }
+        // CREATING SHEET DATA LIST
+        let rowObj = {
+          row: rowsList[i],
+          state: IDLE_STATE,
+        };
+        sheetData.push(rowObj);
+
+        // Respect the contact limit
+        if (sheetData.length >= contactLimit) {
+          break;
+        }
       }
-      // CREATING SHEET DATA LIST
-      let rowObj = {
-        row: rowsList[i],
-        state: IDLE_STATE,
-      };
-      sheetData.push(rowObj);
 
-      // Respect the contact limit
-      if (sheetData.length >= contactLimit) {
-        break;
-      }
-    }
-
-    // Save to storage
-    chrome.storage.local.set({ sheetData: sheetData });
-    // clear the input to avoid data not changing when choosing same sheet
-    excelInput.files = new DataTransfer().files;
-  });
+      // Save to storage
+      chrome.storage.local.set({ sheetData: sheetData });
+      // clear the input to avoid data not changing when choosing same sheet
+      excelInput.files = new DataTransfer().files;
+    });
+  }
 });
 
 // Message Box TextArea FocusOut
@@ -1363,7 +1693,7 @@ messageBox.addEventListener("change", () => {
 // Clear Button Clicked
 clearBtn.addEventListener("click", () => {
   Swal.fire({
-    title: "Confim",
+    title: "Confirm",
     text: "The current sending history and saved data will be removed, proceed?",
     icon: "warning",
     showCancelButton: true,
@@ -1378,20 +1708,52 @@ clearBtn.addEventListener("click", () => {
         "messageContent",
         "progressBar",
         "numbersTextarea",
-        "mediaFiles", // Add this to clear media data
-        "mediaSelected", // Add this to clear media selection state
+        "mediaFiles",
+        "mediaSelected",
+        "mediaFilesMetadata", // Add this too
       ];
       chrome.storage.local.remove(itemsToRemove, () => {
+        // Clear UI elements without refreshing WhatsApp
+        // Clear excel file name
+        excelFileName.innerText = "";
+        
+        // Clear message box
+        messageBox.value = "";
+        
+        // Clear media view
+        mediaFileName.innerText = "";
+        
+        // Clear numbers textarea
+        const numbersTextarea = document.getElementById("numbersTextarea");
+        if (numbersTextarea) {
+          numbersTextarea.value = "";
+        }
+        
+        // Reset progress bar
+        progressBar.innerText = "0%";
+        progressBar.style.width = "0%";
+        progressBar.parentElement.parentElement.classList.add("d-none");
+        
+        // Clear report table
+        let tbody = document.querySelector("#reportTable tbody");
+        while (tbody.hasChildNodes()) {
+          tbody.removeChild(tbody.lastChild);
+        }
+        
+        // Hide number columns selector
+        if (!numbersColumns.classList.contains("d-none")) {
+          numbersColumns.classList.add("d-none");
+        }
+        
+        // Reset file inputs
+        excelInput.files = new DataTransfer().files;
+        
         Swal.fire({
           title: "Data Cleared!",
+          text: "All data has been cleared successfully",
           icon: "success",
           showConfirmButton: false,
           timer: 1500,
-        }).then(async () => {
-          chrome.tabs
-            .query({ url: "https://web.whatsapp.com/*" })
-            .then((tabs) => chrome.tabs.reload(tabs[0].id));
-          location.reload();
         });
       });
     }
@@ -1875,13 +2237,27 @@ loginForm.addEventListener("submit", async (e) => {
       throw new Error(data.message || "Login failed");
     }
 
-    // Save auth data to storage
+    // Save auth data to storage with user details
     await chrome.storage.local.set({
       authUser: {
         email: email,
+        name: data.user?.name || email,
         token: data.token,
       },
     });
+
+    // Also save initial subscription data
+    if (data.user) {
+      await chrome.storage.local.set({
+        subscription: {
+          status: data.user.subscriptionStatus || "free",
+          messagesSent: data.user.messagesSent || 0,
+          messagesLimit: data.user.messagesLimit || 200,
+          expiry: data.user.subscriptionExpiry,
+          lastChecked: new Date().toISOString(),
+        },
+      });
+    }
 
     // Hide modal first
     authModal.hide();

@@ -35,10 +35,11 @@ class Whatsapp {
       '[data-testid="attach-clip"]',
       '[data-testid="clip"]',
       '[aria-label="Attach"]',
-      '[data-icon="attach-menu-plus"]'
+      '[data-icon="attach-menu-plus"]',
     ];
-    this.sendButton = '[data-icon="send"]';
-    this.imageInput = 'input[type="file"][accept*="image/*,video/mp4"], input[type="file"][accept*="image"]';
+    this.sendButton = 'button[aria-label="Send"]';
+    this.imageInput =
+      'input[type="file"][accept*="image/*,video/mp4"], input[type="file"][accept*="image"]';
     this.documentInput = 'input[type="file"][accept="*"]';
     this.textInput = '[contenteditable="true"]';
   }
@@ -46,13 +47,15 @@ class Whatsapp {
   sendDocument(extensionInput, withCaption = false, message = null) {
     return new Promise((resolve) => {
       // Blocked Contact Check
-      let blockedcheck = document.querySelector('div[data-testid="block-message"]');
+      let blockedcheck = document.querySelector(
+        'div[data-testid="block-message"]'
+      );
       if (blockedcheck) {
         console.error("Contact is blocked");
         resolve(false);
         return false;
       }
-  
+
       // Find attachment button
       let clipBtn = this.findElement(this.clipButtonSelectors);
       if (!clipBtn) {
@@ -60,26 +63,23 @@ class Whatsapp {
         resolve(false);
         return false;
       }
-  
+
       console.log("Found attachment button, clicking...");
-      // Click to open the attachment menu
       clipBtn.click();
-      
-      // Wait for attachment menu to appear
+
       setTimeout(() => {
-        // Try to find document button based on inspection
+        // Try to find document button
         const docSelectors = [
           'li[data-animate-dropdown-item="true"]:has(span:contains("Document"))',
           'li[role="button"]:has(svg path[fill*="attachment-type-documents-color"])',
           'li[data-animate-dropdown-item="true"]:nth-child(2)',
-          'div:has(span:contains("Document"))'
+          'div:has(span:contains("Document"))',
         ];
-        
+
         let docButton = null;
         for (const selector of docSelectors) {
           try {
             const elements = document.querySelectorAll(selector);
-            console.log(`Doc selector ${selector} found ${elements.length} elements`);
             if (elements.length > 0) {
               docButton = elements[0];
               break;
@@ -88,65 +88,92 @@ class Whatsapp {
             console.log(`Error with selector ${selector}:`, e);
           }
         }
-        
-        // If still not found, try by text content
+
         if (!docButton) {
-          const allDropdownItems = document.querySelectorAll('li[data-animate-dropdown-item="true"]');
+          const allDropdownItems = document.querySelectorAll(
+            'li[data-animate-dropdown-item="true"]'
+          );
           for (const item of allDropdownItems) {
-            if (item.textContent && item.textContent.includes('Document')) {
+            if (item.textContent && item.textContent.includes("Document")) {
               docButton = item;
               break;
             }
           }
         }
-        
+
         if (!docButton) {
           console.error("Document upload button not found");
           resolve(false);
           return;
         }
-  
+
         console.log("Found document button, clicking...");
         docButton.click();
-        
-        // Now find the file input that appears
+
         setTimeout(() => {
           let fileInput = document.querySelector(this.documentInput);
-          
+
           if (!fileInput) {
-            // Try more generic selector
-            fileInput = document.querySelector('input[type="file"][accept="*"]');
+            fileInput = document.querySelector(
+              'input[type="file"][accept="*"]'
+            );
           }
-          
+
           if (!fileInput) {
             console.error("Document input element not found");
             resolve(false);
             return;
           }
-  
-          console.log("Setting files and dispatching change event for document");
-          
+
+          console.log(
+            "Setting files and dispatching change event for document"
+          );
+
           try {
             fileInput.files = extensionInput.files;
             fileInput.dispatchEvent(new Event("change", { bubbles: true }));
-            
+
             setTimeout(() => {
               if (withCaption) {
                 console.log("Sending with caption");
                 this.sendText(message, true).then(() => resolve(true));
               } else {
-                const sendBtn = document.querySelector(this.sendButton);
+                let sendBtn = document.querySelector(this.sendButton);
+                if (!sendBtn) {
+                  sendBtn = document.querySelector(
+                    'div[role="button"][aria-label="Send"]'
+                  );
+                }
+                if (!sendBtn) {
+                  sendBtn = document
+                    .querySelector('[data-icon="send"]')
+                    ?.closest('[role="button"]');
+                }
+
                 if (!sendBtn) {
                   console.error("Send button not found");
                   resolve(false);
                   return;
                 }
-                
+
                 console.log("Clicking send button");
                 sendBtn.click();
-                resolve(true);
+
+                // Wait for document to be sent and UI to reset
+                setTimeout(() => {
+                  // Close any preview modals
+                  const closeButtons = document.querySelectorAll(
+                    '[data-icon="x"], [aria-label="Close"]'
+                  );
+                  closeButtons.forEach((btn) => {
+                    if (btn.offsetParent !== null) {
+                      btn.click();
+                    }
+                  });
+                  resolve(true);
+                }, 2000);
               }
-            }, 3000); // Longer delay to ensure document is processed
+            }, 3000);
           } catch (error) {
             console.error("Error setting files:", error);
             resolve(false);
@@ -270,7 +297,25 @@ class Whatsapp {
       if (asCaption) {
         messageBox = document.querySelectorAll('[contenteditable="true"]')[0];
       } else {
-        messageBox = document.querySelectorAll('[contenteditable="true"]')[1];
+        // Find the main message input more reliably
+        const editableElements = document.querySelectorAll(
+          '[contenteditable="true"]'
+        );
+        messageBox = editableElements[editableElements.length - 1]; // Usually the last one is the main input
+      }
+
+      // Add a check to ensure we found the right element
+      if (!messageBox || messageBox.getAttribute("data-tab") === "10") {
+        // If we got the wrong element, try to find the correct one
+        const allEditables = Array.from(
+          document.querySelectorAll('[contenteditable="true"]')
+        );
+        messageBox =
+          allEditables.find(
+            (el) =>
+              !el.closest('[data-testid="conversation-compose-box-input"]') ===
+              false
+          ) || allEditables[allEditables.length - 1];
       }
       if (messageBox) {
         messageBox.dispatchEvent(
@@ -297,7 +342,41 @@ class Whatsapp {
           })
         );
         delay(randint(1000, 2000)).then(() => {
-          document.querySelector(this.sendButton).click();
+          // Try multiple selectors for the send button
+          let sendBtn = document.querySelector(this.sendButton);
+
+          if (!sendBtn) {
+            // Try attachment-specific send button selector (for captions)
+            sendBtn = document.querySelector(
+              'div[role="button"][aria-label="Send"]'
+            );
+          }
+
+          if (!sendBtn) {
+            // Try the data-icon selector as fallback
+            sendBtn = document
+              .querySelector('[data-icon="wds-ic-send-filled"]')
+              ?.closest('[role="button"]');
+          }
+
+          if (!sendBtn) {
+            // For caption scenarios, also try this selector
+            sendBtn = document.querySelector(
+              '.x78zum5.x6s0dn4[aria-label="Send"]'
+            );
+          }
+
+          if (!sendBtn) {
+            console.error("Send button not found with any selector");
+            resolve(false);
+            return;
+          }
+
+          console.log(
+            "Clicking send button for",
+            asCaption ? "caption" : "regular text"
+          );
+          sendBtn.click();
           resolve(true);
         });
       } else {
@@ -329,13 +408,15 @@ class Whatsapp {
   sendImage(extensionInput, withCaption = false, message = null) {
     return new Promise((resolve) => {
       // Blocked Contact Check
-      let blockedcheck = document.querySelector('div[data-testid="block-message"]');
+      let blockedcheck = document.querySelector(
+        'div[data-testid="block-message"]'
+      );
       if (blockedcheck) {
         console.error("Contact is blocked");
         resolve(false);
         return false;
       }
-  
+
       // Find attachment button
       let clipBtn = this.findElement(this.clipButtonSelectors);
       if (!clipBtn) {
@@ -343,145 +424,75 @@ class Whatsapp {
         resolve(false);
         return false;
       }
-  
+
       console.log("Found attachment button, clicking...");
-      // Click to open the attachment menu
       clipBtn.click();
-      
-      // Wait for attachment menu to appear
+
       setTimeout(() => {
-        // Updated selectors based on your inspection
-        const photoSelectors = [
-          'li[data-animate-dropdown-item="true"] div[role="button"]',
-          'li[role="button"] div:has(svg)',
-          'li[tabindex="0"][role="button"]',
-          'div:has(span:contains("Photos & videos"))',
-          'input[accept*="image/*,video/mp4"]',
-          'input[type="file"][accept*="image/*"]'
-        ];
-        
-        // Try direct input selector first (most reliable)
-        let fileInput = document.querySelector('input[accept*="image/*,video/mp4"][type="file"]');
-        
+        let fileInput = document.querySelector(
+          'input[accept*="image/*,video/mp4"][type="file"]'
+        );
+
         if (fileInput) {
           console.log("Found file input directly, using it");
           try {
             fileInput.files = extensionInput.files;
             fileInput.dispatchEvent(new Event("change", { bubbles: true }));
-            
+
             setTimeout(() => {
               if (withCaption) {
                 console.log("Sending with caption");
                 this.sendText(message, true).then(() => resolve(true));
               } else {
+                // Wait for the send button to appear after image preview loads
                 setTimeout(() => {
-                  const sendBtn = document.querySelector(this.sendButton);
-                  if (sendBtn) {
-                    console.log("Clicking send button");
-                    sendBtn.click();
-                    resolve(true);
-                  } else {
+                  let sendBtn = document.querySelector(this.sendButton);
+                  if (!sendBtn) {
+                    sendBtn = document.querySelector(
+                      'div[role="button"][aria-label="Send"]'
+                    );
+                  }
+                  if (!sendBtn) {
+                    sendBtn = document
+                      .querySelector('[data-icon="send"]')
+                      ?.closest('[role="button"]');
+                  }
+
+                  if (!sendBtn) {
                     console.error("Send button not found");
                     resolve(false);
+                    return;
                   }
+
+                  console.log("Clicking send button");
+                  sendBtn.click();
+
+                  // Wait for the media to be sent and UI to reset
+                  setTimeout(() => {
+                    // Close any media preview that might still be open
+                    const closeButtons = document.querySelectorAll(
+                      '[data-icon="x"], [aria-label="Close"]'
+                    );
+                    closeButtons.forEach((btn) => {
+                      if (btn.offsetParent !== null) {
+                        btn.click();
+                      }
+                    });
+                    resolve(true);
+                  }, 2000);
                 }, 2000);
               }
             }, 2000);
             return;
           } catch (err) {
             console.error("Error setting files directly:", err);
+            resolve(false);
           }
-        }
-        
-        // If direct input not found or failed, try to find and click the photo button
-        let photoButton = null;
-        
-        // Based on your inspection, look for the Photos & videos list item
-        photoButton = document.querySelector('li[tabindex="0"][role="button"]:has(span:contains("Photos & videos"))');
-        if (!photoButton) {
-          photoButton = document.querySelector('li[data-animate-dropdown-item="true"]');
-        }
-        
-        // Fallback to more generic selectors
-        if (!photoButton) {
-          for (const selector of photoSelectors) {
-            try {
-              const elements = document.querySelectorAll(selector);
-              console.log(`Selector ${selector} found ${elements.length} elements`);
-              if (elements.length > 0) {
-                photoButton = elements[0];
-                break;
-              }
-            } catch (e) {
-              console.log(`Error with selector ${selector}:`, e);
-            }
-          }
-        }
-        
-        // If still not found, try looking for elements with "Photos" text
-        if (!photoButton) {
-          const allElements = document.querySelectorAll('*');
-          for (const elem of allElements) {
-            if (elem.textContent && 
-                (elem.textContent.includes('Photos') || 
-                 elem.textContent.includes('photos') || 
-                 elem.textContent.includes('image'))) {
-              const parent = elem.closest('[role="button"]') || elem;
-              photoButton = parent;
-              console.log("Found photo button by text content:", elem.textContent);
-              break;
-            }
-          }
-        }
-        
-        if (!photoButton) {
-          console.error("Photo upload button not found");
+        } else {
+          console.error("File input not found");
           resolve(false);
-          return;
         }
-  
-        console.log("Found photo button, clicking...");
-        photoButton.click();
-        
-        // Now find the file input that appears
-        setTimeout(() => {
-          let fileInput = document.querySelector('input[type="file"][accept*="image/*,video/mp4"], input[type="file"][accept*="image"]');
-          
-          if (!fileInput) {
-            console.error("File input element not found");
-            resolve(false);
-            return;
-          }
-  
-          console.log("Setting files and dispatching change event");
-          
-          try {
-            fileInput.files = extensionInput.files;
-            fileInput.dispatchEvent(new Event("change", { bubbles: true }));
-            
-            setTimeout(() => {
-              if (withCaption) {
-                console.log("Sending with caption");
-                this.sendText(message, true).then(() => resolve(true));
-              } else {
-                const sendBtn = document.querySelector(this.sendButton);
-                if (!sendBtn) {
-                  console.error("Send button not found");
-                  resolve(false);
-                  return;
-                }
-                
-                console.log("Clicking send button");
-                sendBtn.click();
-                resolve(true);
-              }
-            }, 3000); // Longer delay to ensure image is processed
-          } catch (error) {
-            console.error("Error setting files:", error);
-            resolve(false);
-          }
-        }, 2000); // Longer delay to ensure file input is ready
-      }, 1500); // Longer delay to ensure menu appears
+      }, 1500);
     });
   }
 }

@@ -186,6 +186,30 @@ window.addEventListener("load", async () => {
   }
 });
 
+// Check subscription status periodically (every 5 minutes)
+setInterval(async () => {
+  const authUser = await fetchStorage("authUser");
+  if (authUser && authUser.token) {
+    const { canSend, isPremium } = await checkSubscription();
+    
+    // Update UI if subscription status changed
+    await updateSubscriptionUI();
+    updateMessageCountDisplay();
+    updateUpgradeButtonVisibility();
+    
+    // If subscription expired, show notification
+    const oldSubscription = await fetchStorage("subscription");
+    if (oldSubscription && oldSubscription.status === "active" && !isPremium) {
+      Swal.fire({
+        title: "Subscription Expired",
+        text: "Your premium subscription has expired. You've been reverted to the free plan with 200 messages per month.",
+        icon: "info",
+        confirmButtonText: "OK"
+      });
+    }
+  }
+}, 5 * 60 * 1000); // Check every 5 minutes
+
 // This handles showing/hiding premium features based on subscription status
 async function updateSubscriptionUI() {
   const authUser = await fetchStorage("authUser");

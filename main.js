@@ -311,14 +311,30 @@ async function checkSubscription() {
   if (subscription && subscription.lastChecked) {
     const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
     if (new Date(subscription.lastChecked).getTime() > fiveMinutesAgo) {
-      const isPremium = subscription.status === "active";
-      const canSend =
-        isPremium || subscription.messagesSent < subscription.messagesLimit;
-      return { canSend, isPremium };
+      // Check if subscription has expired locally
+      if (subscription.status === "active" && subscription.expiry) {
+        const now = new Date();
+        const expiryDate = new Date(subscription.expiry);
+        if (now > expiryDate) {
+          // Subscription has expired, force refresh from server
+          console.log("Cached subscription is expired, refreshing from server");
+        } else {
+          // Still valid, use cached data
+          const isPremium = subscription.status === "active";
+          const canSend =
+            isPremium || subscription.messagesSent < subscription.messagesLimit;
+          return { canSend, isPremium };
+        }
+      } else {
+        // Not active subscription, use cached data
+        const isPremium = false;
+        const canSend = subscription.messagesSent < subscription.messagesLimit;
+        return { canSend, isPremium };
+      }
     }
   }
 
-  // Otherwise fetch from the server
+  // Fetch fresh data from the server
   try {
     const response = await fetch(`${API_URL}/paystack/user-subscription`, {
       method: "GET",
@@ -331,7 +347,6 @@ async function checkSubscription() {
     if (!response.ok) {
       if (response.status === 401) {
         console.error("Authentication failed - token may be expired");
-        // Clear auth data and show login
         await chrome.storage.local.remove("authUser");
         checkAuthStatus();
         return { canSend: false, isPremium: false };
@@ -351,7 +366,10 @@ async function checkSubscription() {
         subscription: {
           status: data.data.subscriptionStatus,
           messagesSent: data.data.messagesSent || 0,
-          messagesLimit: data.data.messagesLimit || 200,
+          messagesLimit:
+            data.data.messagesLimit === "unlimited"
+              ? -1
+              : data.data.messagesLimit || 200,
           expiry: data.data.subscriptionExpiry,
           lastChecked: new Date().toISOString(),
         },
@@ -372,7 +390,6 @@ async function checkSubscription() {
       return { canSend, isPremium };
     }
 
-    // Default to allowing free tier messages if we can't connect
     return { canSend: true, isPremium: false };
   }
 }

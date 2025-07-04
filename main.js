@@ -8,17 +8,17 @@
 let API_URL = "http://localhost:80/api"; // default
 
 chrome.storage.local.get("appConfig", (result) => {
-    if (result.appConfig && result.appConfig.apiUrl) {
-        API_URL = result.appConfig.apiUrl;
-        console.log('API URL loaded from config:', API_URL);
-    }
+  if (result.appConfig && result.appConfig.apiUrl) {
+    API_URL = result.appConfig.apiUrl;
+    console.log("API URL loaded from config:", API_URL);
+  }
 });
 
-console.log('API URL:', API_URL);
+console.log("API URL:", API_URL);
 
 // In main.js
 chrome.runtime.onConnect.addListener((port) => {
-    console.log('Connection established');
+  console.log("Connection established");
 });
 
 // STATES & EVENTS
@@ -32,17 +32,17 @@ let is_sent = false;
 let debug_mode = false;
 
 chrome.storage.onChanged.addListener((changes) => {
-    if (changes.debugMode) {
-        debug_mode = changes.debugMode.newValue;
-        console.log("Debug mode set to:", debug_mode);
-    }
+  if (changes.debugMode) {
+    debug_mode = changes.debugMode.newValue;
+    console.log("Debug mode set to:", debug_mode);
+  }
 });
 
 chrome.storage.local.get("debugMode", (result) => {
-    if (result.debugMode !== undefined) {
-        debug_mode = result.debugMode;
-        console.log("Debug mode initialized:", debug_mode);
-    }
+  if (result.debugMode !== undefined) {
+    debug_mode = result.debugMode;
+    console.log("Debug mode initialized:", debug_mode);
+  }
 });
 
 const wa = new Whatsapp();
@@ -88,30 +88,35 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.message === "prepare_for_file_transfer") {
     sendResponse(); // Acknowledge receipt
-    
+
     // Connect to the popup to request the files
-    const port = chrome.runtime.connect({name: `file_transfer_${request.transferId}`});
-    
+    const port = chrome.runtime.connect({
+      name: `file_transfer_${request.transferId}`,
+    });
+
     // Request the files
-    port.postMessage({action: "request_files"});
-    
+    port.postMessage({ action: "request_files" });
+
     // Handle the file transfer
-    port.onMessage.addListener(msg => {
+    port.onMessage.addListener((msg) => {
       if (msg.action === "transfer_file_list") {
         // Get the files from the message
         const receivedFiles = msg.files;
-        
+
         // Create a FileList-like object
         const dataTransfer = new DataTransfer();
         for (let i = 0; i < receivedFiles.length; i++) {
           dataTransfer.items.add(receivedFiles[i]);
         }
-        
+
         // Store the files in the mediaInput element
         const mediaInput = document.getElementById("mediaInput");
         if (mediaInput) {
           mediaInput.files = dataTransfer.files;
-          console.log("Files transferred successfully:", mediaInput.files.length);
+          console.log(
+            "Files transferred successfully:",
+            mediaInput.files.length
+          );
         } else {
           console.error("Media input element not found");
         }
@@ -129,6 +134,68 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
+// Handle comprehensive media clearing
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (
+    request.message === "clear_media_files" ||
+    request.message === "clear_all_media_data"
+  ) {
+    try {
+      console.log("Clearing all media files in content script...");
+
+      // Clear the main media input element
+      const mediaInput = document.getElementById("mediaInput");
+      if (mediaInput) {
+        mediaInput.value = "";
+        mediaInput.files = null;
+
+        // Create a new empty DataTransfer to clear files
+        const dataTransfer = new DataTransfer();
+        mediaInput.files = dataTransfer.files;
+
+        console.log(
+          "Main media input cleared, files count:",
+          mediaInput.files.length
+        );
+      }
+
+      // Clear any file inputs that might exist in the page
+      const allFileInputs = document.querySelectorAll('input[type="file"]');
+      allFileInputs.forEach((input, index) => {
+        input.value = "";
+        const emptyTransfer = new DataTransfer();
+        input.files = emptyTransfer.files;
+        console.log(`File input ${index} cleared`);
+      });
+
+      // Reset the originalMediaFiles variable if it exists
+      if (typeof originalMediaFiles !== "undefined") {
+        originalMediaFiles = null;
+      }
+
+      // Clear any global variables that might store media
+      if (typeof window.selectedMediaFiles !== "undefined") {
+        window.selectedMediaFiles = null;
+      }
+
+      sendResponse({
+        status: "success",
+        message: "All media files cleared",
+        clearedInputs: allFileInputs.length,
+      });
+    } catch (error) {
+      console.error("Error clearing media files:", error);
+      sendResponse({
+        status: "error",
+        message: error.toString(),
+      });
+    }
+  }
+
+  // Always return true for async response
+  return true;
+});
+
 // Handle file transfer from extension to WhatsApp
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
   if (request.message === "transfer_media_files") {
@@ -139,7 +206,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
       const fileData = request.fileData;
       if (!fileData || !fileData.length) {
         console.error("No file data received");
-        sendResponse({ status: 'error', message: "No files to transfer" });
+        sendResponse({ status: "error", message: "No files to transfer" });
         return;
       }
 
@@ -151,12 +218,12 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         try {
           // Safely convert base64 to blob
           const dataUrl = file.data;
-          const base64Index = dataUrl.indexOf(',') + 1;
+          const base64Index = dataUrl.indexOf(",") + 1;
           if (base64Index === 0) {
             console.error("Invalid data URL format for file:", file.name);
             continue;
           }
-          
+
           const base64 = dataUrl.substring(base64Index);
           // Use safer method to decode base64
           try {
@@ -187,66 +254,69 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
       if (mediaInput) {
         if (dataTransfer.files.length > 0) {
           mediaInput.files = dataTransfer.files;
-          
+
           // Add more detailed logging
           if (debug_mode) {
-            console.log('Media files transferred successfully:', mediaInput.files.length);
+            console.log(
+              "Media files transferred successfully:",
+              mediaInput.files.length
+            );
             mediaInput.files.forEach((file, index) => {
               console.log(`File ${index + 1}:`, {
                 name: file.name,
                 type: file.type,
-                size: file.size
+                size: file.size,
               });
             });
           }
-          
-          sendResponse({ 
-            status: 'success', 
-            fileCount: dataTransfer.files.length 
+
+          sendResponse({
+            status: "success",
+            fileCount: dataTransfer.files.length,
           });
         } else {
           console.error("No valid files were processed");
-          
+
           if (debug_mode) {
-            chrome.runtime.sendMessage({ 
-              message: "media_transfer_error", 
-              error: "No valid files could be processed" 
+            chrome.runtime.sendMessage({
+              message: "media_transfer_error",
+              error: "No valid files could be processed",
             });
           }
-          
-          sendResponse({ 
-            status: 'error', 
-            message: "No valid files to transfer" 
+
+          sendResponse({
+            status: "error",
+            message: "No valid files to transfer",
           });
         }
       } else {
         console.error("Media input element not found");
-        
+
         if (debug_mode) {
-          chrome.runtime.sendMessage({ 
-            message: "media_transfer_error", 
-            error: "Media input element not found" 
+          chrome.runtime.sendMessage({
+            message: "media_transfer_error",
+            error: "Media input element not found",
           });
         }
-        
-        sendResponse({ 
-          status: 'error', 
-          message: "Media input element not found" 
+
+        sendResponse({
+          status: "error",
+          message: "Media input element not found",
         });
       }
     } catch (error) {
       console.error("Error processing media files:", error);
-      
+
       if (debug_mode) {
-        chrome.runtime.sendMessage({ 
-          message: "media_transfer_error", 
-          error: error.toString() 
+        chrome.runtime.sendMessage({
+          message: "media_transfer_error",
+          error: error.toString(),
         });
       }
-      
-      sendResponse({ 
-        status: 'error', 
-        message: error.toString() 
+
+      sendResponse({
+        status: "error",
+        message: error.toString(),
       });
     }
   }
@@ -398,17 +468,17 @@ async function checkSubscription() {
 async function incrementMessageCount() {
   const authUser = await fetchStorage("authUser");
   const subscription = await fetchStorage("subscription");
-  
+
   // No need to increment for premium users
-  if (subscription && subscription.status === 'active') {
+  if (subscription && subscription.status === "active") {
     return true;
   }
-  
+
   if (!authUser || !authUser.token) {
     console.log("User not authenticated");
     return false;
   }
-  
+
   try {
     const response = await fetch(`${API_URL}/paystack/increment-message`, {
       method: "POST",
@@ -417,31 +487,31 @@ async function incrementMessageCount() {
         "Content-Type": "application/json",
       },
     });
-    
+
     if (!response.ok) {
       throw new Error("Failed to increment message count");
     }
-    
+
     const data = await response.json();
-    
+
     if (data.success) {
       // Update local storage
-      const subscription = await fetchStorage("subscription") || {};
+      const subscription = (await fetchStorage("subscription")) || {};
       subscription.messagesSent = data.data.messagesSent;
       await chrome.storage.local.set({ subscription });
       return true;
     }
-    
+
     return false;
   } catch (error) {
-  console.error("Error incrementing message count:", error);
-  if (debug_mode) {
-    chrome.runtime.sendMessage({ 
-      message: "api_error", 
-      error: "Message count update failed: " + error.message 
-    });
-  }
-  return false;
+    console.error("Error incrementing message count:", error);
+    if (debug_mode) {
+      chrome.runtime.sendMessage({
+        message: "api_error",
+        error: "Message count update failed: " + error.message,
+      });
+    }
+    return false;
   }
 }
 
@@ -591,55 +661,68 @@ async function startSending() {
 
       // CHECK SENDING ORDER and handle accordingly
       if (sendingOrder === "textFirst") {
-        // SEND TEXT
+        // SEND TEXT FIRST
         if (!debug_mode) {
-          is_sent = await wa.sendText(message);
-          if (is_sent) {
-            // Increment message count for free users
-            await incrementMessageCount();
-            sent++; // Increment sent counter
+          let messageSent = false;
 
-            // Wait for text to be sent
-            await delay(2000);
+          // Send text only if message is not empty
+          if (message && message.trim() !== "") {
+            const textSent = await wa.sendText(message);
+            if (textSent) {
+              messageSent = true;
+              // Wait for text to be sent
+              await delay(2000);
+            }
+          }
 
-            // SEND MEDIA only if premium
-            if (isPremium) {
-              const mediaInput = document.getElementById("mediaInput");
-              if (mediaInput && originalMediaFiles) {
-                // Restore the files before each send
-                mediaInput.files = originalMediaFiles;
-              }
+          // SEND MEDIA (for premium users or if text was sent but we want to send media too)
+          if (isPremium) {
+            const mediaInput = document.getElementById("mediaInput");
+            if (mediaInput && originalMediaFiles) {
+              // Restore the files before each send
+              mediaInput.files = originalMediaFiles;
+            }
+            if (mediaInput && mediaInput.files && mediaInput.files.length > 0) {
+              // Ensure WhatsApp is ready for media
+              await ensureWhatsAppReady();
+
+              // Check file type to determine which send method to use
+              const fileType = mediaInput.files[0].type;
+              console.log("File type:", fileType);
+
               if (
-                mediaInput &&
-                mediaInput.files &&
-                mediaInput.files.length > 0
+                fileType.startsWith("image/") ||
+                fileType.startsWith("video/")
               ) {
-                // Ensure WhatsApp is ready for media
-                await ensureWhatsAppReady();
-
-                // Check file type to determine which send method to use
-                const fileType = mediaInput.files[0].type;
-                console.log("File type:", fileType);
-
-                if (
-                  fileType.startsWith("image/") ||
-                  fileType.startsWith("video/")
-                ) {
-                  console.log("Sending image/video after text...");
-                  await wa.sendImage(mediaInput);
-                } else {
-                  console.log("Sending document after text...");
-                  await wa.sendDocument(mediaInput);
+                console.log("Sending image/video after text...");
+                const mediaSent = await wa.sendImage(mediaInput);
+                if (mediaSent && !messageSent) {
+                  messageSent = true;
+                }
+              } else {
+                console.log("Sending document after text...");
+                const mediaSent = await wa.sendDocument(mediaInput);
+                if (mediaSent && !messageSent) {
+                  messageSent = true;
                 }
               }
             }
           }
+
+          // Only increment message count once per contact
+          if (messageSent) {
+            await incrementMessageCount();
+            sent++; // Increment sent counter
+          }
+
+          // Set is_sent based on whether anything was sent
+          is_sent = messageSent;
         }
       } else if (sendingOrder === "attachmentFirst") {
         if (!debug_mode) {
-          // SEND MEDIA only if premium
-          let mediaSuccess = false;
+          let messageSent = false;
 
+          // SEND MEDIA first (for premium users)
           if (isPremium) {
             const mediaInput = document.getElementById("mediaInput");
             if (mediaInput && originalMediaFiles) {
@@ -655,94 +738,102 @@ async function startSending() {
                 fileType.startsWith("video/")
               ) {
                 console.log("Sending image/video before text...");
-                mediaSuccess = await wa.sendImage(mediaInput);
+                const mediaSent = await wa.sendImage(mediaInput);
+                if (mediaSent) {
+                  messageSent = true;
+                }
               } else {
                 console.log("Sending document before text...");
-                mediaSuccess = await wa.sendDocument(mediaInput);
+                const mediaSent = await wa.sendDocument(mediaInput);
+                if (mediaSent) {
+                  messageSent = true;
+                }
               }
 
               // Wait for media to be fully sent
               await delay(3000);
-
-              // Only proceed if media was sent successfully
-              if (mediaSuccess) {
-                // Ensure WhatsApp is ready for text input
-                await ensureWhatsAppReady();
-
-                // SEND TEXT
-                is_sent = await wa.sendText(message);
-
-                if (is_sent) {
-                  // Increment message count for free users
-                  await incrementMessageCount();
-                  sent++; // Increment sent counter
-                }
-              } else {
-                console.error("Failed to send media, trying text only");
-                // Try to send text anyway
-                await ensureWhatsAppReady();
-                is_sent = await wa.sendText(message);
-
-                if (is_sent) {
-                  await incrementMessageCount();
-                  sent++;
-                }
-              }
-            } else {
-              // No media files, just send text
-              is_sent = await wa.sendText(message);
-
-              if (is_sent) {
-                await incrementMessageCount();
-                sent++;
-              }
-            }
-          } else {
-            // Free users - just send text
-            is_sent = await wa.sendText(message);
-
-            if (is_sent) {
-              await incrementMessageCount();
-              sent++;
             }
           }
-        }
-      } else {
-        if (!debug_mode) {
-          // SEND MEDIA WITH CAPTION (Premium users only)
-          if (isPremium) {
-            const mediaInput = document.getElementById("mediaInput");
-            if (mediaInput && originalMediaFiles) {
-              // Restore the files before each send
-              mediaInput.files = originalMediaFiles;
-            }
-            if (mediaInput && mediaInput.files && mediaInput.files.length > 0) {
-              // Check file type to determine which send method to use
-              const fileType = mediaInput.files[0].type;
 
-              if (
-                fileType.startsWith("image/") ||
-                fileType.startsWith("video/")
-              ) {
-                console.log("Sending image/video with caption...");
-                is_sent = await wa.sendImage(mediaInput, true, message);
-              } else {
-                console.log("Sending document with caption...");
-                is_sent = await wa.sendDocument(mediaInput, true, message);
-              }
-            } else {
-              is_sent = await wa.sendText(message);
+          // SEND TEXT (if exists)
+          if (message && message.trim() !== "") {
+            // Ensure WhatsApp is ready for text input
+            await ensureWhatsAppReady();
+
+            const textSent = await wa.sendText(message);
+            if (textSent && !messageSent) {
+              messageSent = true;
             }
-          } else {
-            // Free users just send text
-            is_sent = await wa.sendText(message);
           }
 
-          if (is_sent) {
-            // Increment message count for free users
+          // Only increment message count once per contact
+          if (messageSent) {
             await incrementMessageCount();
             sent++; // Increment sent counter
           }
+
+          // Set is_sent based on what was sent
+          is_sent = messageSent;
+        }
+      } else {
+        // CAPTION MODE
+        if (!debug_mode) {
+          let messageSent = false;
+
+          // SEND MEDIA WITH CAPTION (Premium users) or just text
+          const mediaInput = document.getElementById("mediaInput");
+          if (mediaInput && originalMediaFiles) {
+            // Restore the files before each send
+            mediaInput.files = originalMediaFiles;
+          }
+
+          if (mediaInput && mediaInput.files && mediaInput.files.length > 0) {
+            // Check file type to determine which send method to use
+            const fileType = mediaInput.files[0].type;
+
+            // Use message as caption only if it exists and user is premium
+            const captionToUse =
+              isPremium && message && message.trim() !== "" ? message : null;
+
+            if (
+              fileType.startsWith("image/") ||
+              fileType.startsWith("video/")
+            ) {
+              console.log("Sending image/video with caption...");
+              const mediaSent = await wa.sendImage(
+                mediaInput,
+                !!captionToUse,
+                captionToUse
+              );
+              if (mediaSent) {
+                messageSent = true;
+              }
+            } else {
+              console.log("Sending document with caption...");
+              const mediaSent = await wa.sendDocument(
+                mediaInput,
+                !!captionToUse,
+                captionToUse
+              );
+              if (mediaSent) {
+                messageSent = true;
+              }
+            }
+          } else if (message && message.trim() !== "") {
+            // No media, just send text
+            const textSent = await wa.sendText(message);
+            if (textSent) {
+              messageSent = true;
+            }
+          }
+
+          // Only increment message count once per contact
+          if (messageSent) {
+            await incrementMessageCount();
+            sent++; // Increment sent counter
+          }
+
+          is_sent = messageSent;
         }
       }
 

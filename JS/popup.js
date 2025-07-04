@@ -99,54 +99,54 @@ document
   .appendChild(showVerifyPaymentBtn);
 
 // Add collapsible section functionality
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener("DOMContentLoaded", function () {
   // Initialize collapsible sections
-  const collapsibleHeaders = document.querySelectorAll('.collapsible-header');
-  
-  collapsibleHeaders.forEach(header => {
-      header.addEventListener('click', function() {
-          const section = this.closest('.collapsible-section');
-          const content = section.querySelector('.collapsible-content');
-          const icon = this.querySelector('.collapse-icon');
-          
-          if (section.classList.contains('collapsed')) {
-              section.classList.remove('collapsed');
-              content.style.display = 'block';
-              icon.style.transform = 'rotate(0deg)';
-          } else {
-              section.classList.add('collapsed');
-              content.style.display = 'none';
-              icon.style.transform = 'rotate(-90deg)';
-          }
-      });
+  const collapsibleHeaders = document.querySelectorAll(".collapsible-header");
+
+  collapsibleHeaders.forEach((header) => {
+    header.addEventListener("click", function () {
+      const section = this.closest(".collapsible-section");
+      const content = section.querySelector(".collapsible-content");
+      const icon = this.querySelector(".collapse-icon");
+
+      if (section.classList.contains("collapsed")) {
+        section.classList.remove("collapsed");
+        content.style.display = "block";
+        icon.style.transform = "rotate(0deg)";
+      } else {
+        section.classList.add("collapsed");
+        content.style.display = "none";
+        icon.style.transform = "rotate(-90deg)";
+      }
+    });
   });
-  
+
   // Add debug mode toggle
-  const debugModeToggle = document.getElementById('debugModeToggle');
+  const debugModeToggle = document.getElementById("debugModeToggle");
   if (debugModeToggle) {
-      // Load saved debug mode state
-      chrome.storage.local.get('debugMode', (result) => {
-          if (result.debugMode) {
-              debugModeToggle.checked = true;
-          }
-      });
-      
-      // Save debug mode state when changed
-      debugModeToggle.addEventListener('change', function() {
-          chrome.storage.local.set({ debugMode: this.checked });
-      });
+    // Load saved debug mode state
+    chrome.storage.local.get("debugMode", (result) => {
+      if (result.debugMode) {
+        debugModeToggle.checked = true;
+      }
+    });
+
+    // Save debug mode state when changed
+    debugModeToggle.addEventListener("change", function () {
+      chrome.storage.local.set({ debugMode: this.checked });
+    });
   }
 });
 
 // Add API error banner close button functionality
-const apiErrorClose = document.getElementById('apiErrorClose');
+const apiErrorClose = document.getElementById("apiErrorClose");
 if (apiErrorClose) {
-    apiErrorClose.addEventListener('click', function() {
-        const apiErrorBanner = document.getElementById('apiErrorBanner');
-        if (apiErrorBanner) {
-            apiErrorBanner.style.display = 'none';
-        }
-    });
+  apiErrorClose.addEventListener("click", function () {
+    const apiErrorBanner = document.getElementById("apiErrorBanner");
+    if (apiErrorBanner) {
+      apiErrorBanner.style.display = "none";
+    }
+  });
 }
 
 // onstart updating UI with storage data
@@ -191,12 +191,12 @@ setInterval(async () => {
   const authUser = await fetchStorage("authUser");
   if (authUser && authUser.token) {
     const { canSend, isPremium } = await checkSubscription();
-    
+
     // Update UI if subscription status changed
     await updateSubscriptionUI();
     updateMessageCountDisplay();
     updateUpgradeButtonVisibility();
-    
+
     // If subscription expired, show notification
     const oldSubscription = await fetchStorage("subscription");
     if (oldSubscription && oldSubscription.status === "active" && !isPremium) {
@@ -204,7 +204,7 @@ setInterval(async () => {
         title: "Subscription Expired",
         text: "Your premium subscription has expired. You've been reverted to the free plan with 200 messages per month.",
         icon: "info",
-        confirmButtonText: "OK"
+        confirmButtonText: "OK",
       });
     }
   }
@@ -329,7 +329,6 @@ function getMessageDisplay(subscription) {
     return { remaining: remaining.toString(), max: max.toString() };
   }
 }
-
 
 function updateMessageCountDisplay() {
   chrome.storage.local.get("subscription", async (result) => {
@@ -528,13 +527,16 @@ async function initializePaystackPayment() {
 
   try {
     // First, check for recent payments
-    const recentPaymentCheck = await fetch(`${API_URL}/paystack/check-recent-payment`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${authUser.token}`,
-        "Content-Type": "application/json",
-      },
-    });
+    const recentPaymentCheck = await fetch(
+      `${API_URL}/paystack/check-recent-payment`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${authUser.token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
 
     const recentPaymentData = await recentPaymentCheck.json();
 
@@ -544,7 +546,9 @@ async function initializePaystackPayment() {
         title: "Active Subscription",
         text: recentPaymentData.message,
         icon: "warning",
-        footer: `Subscription expires on: ${new Date(recentPaymentData.expiryDate).toLocaleDateString()}`
+        footer: `Subscription expires on: ${new Date(
+          recentPaymentData.expiryDate
+        ).toLocaleDateString()}`,
       });
       return;
     }
@@ -833,7 +837,6 @@ window.addEventListener("load", async () => {
     }, 1000);
   }
 });
-
 
 verifyPaymentForm.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -1200,9 +1203,9 @@ mediaBtn.addEventListener("click", async () => {
 });
 
 // Add drag and drop support for media files
-const mediaDropZone = document.getElementById('mediaBtn');
+const mediaDropZone = document.getElementById("mediaBtn");
 if (mediaDropZone) {
-  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+  ["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) => {
     mediaDropZone.addEventListener(eventName, preventDefaults, false);
     document.body.addEventListener(eventName, preventDefaults, false);
   });
@@ -1212,19 +1215,19 @@ if (mediaDropZone) {
     e.stopPropagation();
   }
 
-  ['dragenter', 'dragover'].forEach(eventName => {
+  ["dragenter", "dragover"].forEach((eventName) => {
     mediaDropZone.addEventListener(eventName, () => {
-      mediaDropZone.classList.add('drag-hover');
+      mediaDropZone.classList.add("drag-hover");
     });
   });
 
-  ['dragleave', 'drop'].forEach(eventName => {
+  ["dragleave", "drop"].forEach((eventName) => {
     mediaDropZone.addEventListener(eventName, () => {
-      mediaDropZone.classList.remove('drag-hover');
+      mediaDropZone.classList.remove("drag-hover");
     });
   });
 
-  mediaDropZone.addEventListener('drop', async (e) => {
+  mediaDropZone.addEventListener("drop", async (e) => {
     const files = e.dataTransfer.files;
     if (files.length > 0) {
       // Check authentication and premium status
@@ -1263,30 +1266,35 @@ if (mediaDropZone) {
 }
 
 // Add drag and drop for Excel files
-const excelDropZone = document.getElementById('excelBtn');
+const excelDropZone = document.getElementById("excelBtn");
 if (excelDropZone) {
-  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+  ["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) => {
     excelDropZone.addEventListener(eventName, preventDefaults, false);
   });
 
-  ['dragenter', 'dragover'].forEach(eventName => {
+  ["dragenter", "dragover"].forEach((eventName) => {
     excelDropZone.addEventListener(eventName, () => {
-      excelDropZone.classList.add('drag-hover');
+      excelDropZone.classList.add("drag-hover");
     });
   });
 
-  ['dragleave', 'drop'].forEach(eventName => {
+  ["dragleave", "drop"].forEach((eventName) => {
     excelDropZone.addEventListener(eventName, () => {
-      excelDropZone.classList.remove('drag-hover');
+      excelDropZone.classList.remove("drag-hover");
     });
   });
 
-  excelDropZone.addEventListener('drop', async (e) => {
+  excelDropZone.addEventListener("drop", async (e) => {
     const files = e.dataTransfer.files;
-    if (files.length > 0 && (files[0].name.endsWith('.xlsx') || files[0].name.endsWith('.xls') || files[0].name.endsWith('.csv'))) {
+    if (
+      files.length > 0 &&
+      (files[0].name.endsWith(".xlsx") ||
+        files[0].name.endsWith(".xls") ||
+        files[0].name.endsWith(".csv"))
+    ) {
       // Process the Excel file
       excelInput.files = files;
-      excelInput.dispatchEvent(new Event('change'));
+      excelInput.dispatchEvent(new Event("change"));
     }
   });
 }
@@ -1378,7 +1386,9 @@ async function processMediaFiles(files) {
     // Update UI
     let filesText = "";
     Array.from(files).forEach((file) => {
-      filesText += `${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB), `;
+      filesText += `${file.name} (${(file.size / (1024 * 1024)).toFixed(
+        2
+      )} MB), `;
     });
     filesText = filesText.slice(0, -2);
     mediaFileName.innerText =
@@ -1709,9 +1719,23 @@ excelInput.addEventListener("change", async () => {
   }
 });
 
-// Message Box TextArea FocusOut
+// Message Box TextArea FocusOut and Input
 messageBox.addEventListener("change", () => {
-  chrome.storage.local.set({ messageContent: messageBox.value });
+  const content = messageBox.value;
+  chrome.storage.local.set({ messageContent: content });
+});
+
+messageBox.addEventListener("input", () => {
+  const content = messageBox.value;
+  chrome.storage.local.set({ messageContent: content });
+});
+
+// Additional event listener to catch paste events with emojis
+messageBox.addEventListener("paste", (e) => {
+  setTimeout(() => {
+    const content = messageBox.value;
+    chrome.storage.local.set({ messageContent: content });
+  }, 100);
 });
 
 // Clear Button Clicked
@@ -1734,44 +1758,101 @@ clearBtn.addEventListener("click", () => {
         "numbersTextarea",
         "mediaFiles",
         "mediaSelected",
-        "mediaFilesMetadata", // Add this too
+        "mediaFilesMetadata",
+        "selectedFiles", // Add this for additional media storage
       ];
+
       chrome.storage.local.remove(itemsToRemove, () => {
         // Clear UI elements without refreshing WhatsApp
         // Clear excel file name
         excelFileName.innerText = "";
-        
+
         // Clear message box
         messageBox.value = "";
-        
+
         // Clear media view
         mediaFileName.innerText = "";
-        
+
         // Clear numbers textarea
         const numbersTextarea = document.getElementById("numbersTextarea");
         if (numbersTextarea) {
           numbersTextarea.value = "";
         }
-        
+
         // Reset progress bar
         progressBar.innerText = "0%";
         progressBar.style.width = "0%";
         progressBar.parentElement.parentElement.classList.add("d-none");
-        
+
         // Clear report table
         let tbody = document.querySelector("#reportTable tbody");
         while (tbody.hasChildNodes()) {
           tbody.removeChild(tbody.lastChild);
         }
-        
+
         // Hide number columns selector
         if (!numbersColumns.classList.contains("d-none")) {
           numbersColumns.classList.add("d-none");
         }
-        
-        // Reset file inputs
-        excelInput.files = new DataTransfer().files;
-        
+
+        // Reset file inputs in popup
+        if (excelInput) {
+          excelInput.value = "";
+          excelInput.files = new DataTransfer().files;
+        }
+
+        // Clear any other file inputs in the popup
+        const allFileInputs = document.querySelectorAll('input[type="file"]');
+        allFileInputs.forEach((input) => {
+          input.value = "";
+          input.files = new DataTransfer().files;
+        });
+
+        // Clear media files in the content script (WhatsApp tab)
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs[0]) {
+            chrome.tabs.sendMessage(
+              tabs[0].id,
+              {
+                message: "clear_media_files",
+              },
+              (response) => {
+                if (chrome.runtime.lastError) {
+                  console.log(
+                    "Could not clear media in content script:",
+                    chrome.runtime.lastError
+                  );
+                } else {
+                  console.log(
+                    "Media files cleared in content script:",
+                    response
+                  );
+                }
+              }
+            );
+          }
+        });
+
+        // Also clear media through the transfer system
+        chrome.tabs.query({ url: "*://web.whatsapp.com/*" }, (tabs) => {
+          if (tabs.length > 0) {
+            chrome.tabs.sendMessage(
+              tabs[0].id,
+              {
+                message: "clear_all_media_data",
+              },
+              (response) => {
+                if (chrome.runtime.lastError) {
+                  console.log(
+                    "Could not send clear media message:",
+                    chrome.runtime.lastError
+                  );
+                }
+              }
+            );
+          }
+        });
+
         Swal.fire({
           title: "Data Cleared!",
           text: "All data has been cleared successfully",
@@ -1846,11 +1927,13 @@ sendingBtn.addEventListener("click", async () => {
     return false;
   }
 
-  // CHECK IF MESSAGE CONTENT EXISTS
+  // CHECK IF MESSAGE CONTENT EXISTS - Updated validation for emojis
   let messageContent = await fetchStorage("messageContent");
-  if (!messageContent) {
+  // More robust check that allows emojis but not empty/whitespace-only content
+  if (!messageContent || messageContent.trim().length === 0) {
     Swal.fire({
       title: "No Message Found",
+      text: "Please enter a message or emoji",
       icon: "error",
     });
     return false;

@@ -293,6 +293,7 @@ class Whatsapp {
         resolve(false);
         return false;
       }
+
       let messageBox;
       if (asCaption) {
         messageBox = document.querySelectorAll('[contenteditable="true"]')[0];
@@ -301,12 +302,11 @@ class Whatsapp {
         const editableElements = document.querySelectorAll(
           '[contenteditable="true"]'
         );
-        messageBox = editableElements[editableElements.length - 1]; // Usually the last one is the main input
+        messageBox = editableElements[editableElements.length - 1];
       }
 
       // Add a check to ensure we found the right element
       if (!messageBox || messageBox.getAttribute("data-tab") === "10") {
-        // If we got the wrong element, try to find the correct one
         const allEditables = Array.from(
           document.querySelectorAll('[contenteditable="true"]')
         );
@@ -317,69 +317,120 @@ class Whatsapp {
               false
           ) || allEditables[allEditables.length - 1];
       }
+
       if (messageBox) {
-        messageBox.dispatchEvent(
-          new InputEvent("input", {
-            data: message,
-            bubbles: true,
-            cancelable: false,
-            cancelBubble: false,
-            currentTarget: null,
-            inputType: "insertText",
-            dataTransfer: null,
-            defaultPrevented: false,
-            detail: 0,
-            eventPhase: 0,
-            isComposing: false,
-            returnValue: true,
-            sourceCapabilities: null,
-            type: "input",
-            view: null,
-            which: 0,
-            composed: true,
-            view: window,
-            detail: 1,
-          })
-        );
-        delay(randint(1000, 2000)).then(() => {
-          // Try multiple selectors for the send button
-          let sendBtn = document.querySelector(this.sendButton);
+        // Clear the message box first
+        messageBox.innerHTML = "";
+        messageBox.innerText = "";
+        messageBox.textContent = "";
 
-          if (!sendBtn) {
-            // Try attachment-specific send button selector (for captions)
-            sendBtn = document.querySelector(
-              'div[role="button"][aria-label="Send"]'
+        // Focus the element first
+        messageBox.focus();
+        messageBox.click();
+
+        // Wait a moment for focus to be established
+        setTimeout(() => {
+          try {
+            // Clear any existing selection first
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+
+            // Set the text content directly - this preserves emojis
+            messageBox.textContent = message;
+
+            // Ensure the cursor is at the end
+            const range = document.createRange();
+            range.selectNodeContents(messageBox);
+            range.collapse(false);
+            selection.removeAllRanges();
+            selection.addRange(range);
+
+            // Force WhatsApp to recognize the content
+            messageBox.dispatchEvent(
+              new Event("input", { bubbles: true, cancelable: true })
             );
-          }
-
-          if (!sendBtn) {
-            // Try the data-icon selector as fallback
-            sendBtn = document
-              .querySelector('[data-icon="wds-ic-send-filled"]')
-              ?.closest('[role="button"]');
-          }
-
-          if (!sendBtn) {
-            // For caption scenarios, also try this selector
-            sendBtn = document.querySelector(
-              '.x78zum5.x6s0dn4[aria-label="Send"]'
+            messageBox.dispatchEvent(
+              new InputEvent("input", {
+                inputType: "insertText",
+                data: message,
+                bubbles: true,
+                cancelable: true,
+              })
             );
+          } catch (error) {
+            console.error("Error setting message:", error);
+
+            // Fallback method
+            try {
+              messageBox.innerHTML = "";
+              const textNode = document.createTextNode(message);
+              messageBox.appendChild(textNode);
+              messageBox.dispatchEvent(new Event("input", { bubbles: true }));
+            } catch (fallbackError) {
+              console.error("Fallback also failed:", fallbackError);
+            }
           }
 
-          if (!sendBtn) {
-            console.error("Send button not found with any selector");
-            resolve(false);
-            return;
-          }
+          // Wait for WhatsApp to process the input
+          setTimeout(() => {
+            // Find and click the send button (only once)
+            let sendBtn = document.querySelector(this.sendButton);
 
-          console.log(
-            "Clicking send button for",
-            asCaption ? "caption" : "regular text"
-          );
-          sendBtn.click();
-          resolve(true);
-        });
+            if (!sendBtn) {
+              sendBtn = document.querySelector(
+                'div[role="button"][aria-label="Send"]'
+              );
+            }
+
+            if (!sendBtn) {
+              sendBtn = document
+                .querySelector('[data-icon="send"]')
+                ?.closest('[role="button"]');
+            }
+
+            if (!sendBtn) {
+              sendBtn = document.querySelector(
+                '[data-testid="send"], [data-icon="send"], button[aria-label*="Send"]'
+              );
+            }
+
+            if (!sendBtn) {
+              const buttons = document.querySelectorAll(
+                'button[role="button"], div[role="button"]'
+              );
+              for (const btn of buttons) {
+                if (
+                  btn.querySelector('[data-icon="send"]') ||
+                  btn.getAttribute("aria-label")?.toLowerCase().includes("send")
+                ) {
+                  sendBtn = btn;
+                  break;
+                }
+              }
+            }
+
+            if (!sendBtn) {
+              console.error("Send button not found with any selector");
+              resolve(false);
+              return;
+            }
+
+            console.log(
+              "Clicking send button for",
+              asCaption ? "caption" : "regular text"
+            );
+
+            // Click the send button only once
+            sendBtn.click();
+
+            // Wait a bit to ensure the message is sent before resolving
+            setTimeout(() => {
+              resolve(true);
+            }, 1000);
+          }, 1500); // Increased delay to ensure content is processed
+        }, 300);
       } else {
+        console.error("Message box not found");
         resolve(false);
       }
     });

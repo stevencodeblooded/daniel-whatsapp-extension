@@ -1,3 +1,5 @@
+// File name => popup.js 
+
 /*
 --Storage Structure--
     sheetData: [{row:[], state:""}]
@@ -1722,20 +1724,40 @@ excelInput.addEventListener("change", async () => {
 // Message Box TextArea FocusOut and Input
 messageBox.addEventListener("change", () => {
   const content = messageBox.value;
-  chrome.storage.local.set({ messageContent: content });
+  chrome.storage.local.set({ messageContent: content }, () => {
+    console.log("Message saved on change:", content);
+  });
 });
 
 messageBox.addEventListener("input", () => {
   const content = messageBox.value;
-  chrome.storage.local.set({ messageContent: content });
+  chrome.storage.local.set({ messageContent: content }, () => {
+    console.log("Message saved on input:", content);
+  });
 });
 
 // Additional event listener to catch paste events with emojis
 messageBox.addEventListener("paste", (e) => {
   setTimeout(() => {
     const content = messageBox.value;
-    chrome.storage.local.set({ messageContent: content });
+    chrome.storage.local.set({ messageContent: content }, () => {
+      console.log("Message saved on paste:", content);
+    });
   }, 100);
+});
+
+// Add blur event to ensure content is saved when focus leaves the textarea
+messageBox.addEventListener("blur", () => {
+  const content = messageBox.value;
+  chrome.storage.local.set({ messageContent: content }, () => {
+    console.log("Message saved on blur:", content);
+  });
+});
+
+// Also save on keyup to catch emoji input from emoji picker
+messageBox.addEventListener("keyup", () => {
+  const content = messageBox.value;
+  chrome.storage.local.set({ messageContent: content });
 });
 
 // Clear Button Clicked
@@ -1929,8 +1951,41 @@ sendingBtn.addEventListener("click", async () => {
 
   // CHECK IF MESSAGE CONTENT EXISTS - Updated validation for emojis
   let messageContent = await fetchStorage("messageContent");
-  // More robust check that allows emojis but not empty/whitespace-only content
-  if (!messageContent || messageContent.trim().length === 0) {
+
+  // CRITICAL: Also check the current value in the message box as a fallback
+  const messageBoxElement = document.getElementById("messagebox");
+  const currentMessageBoxValue = messageBoxElement
+    ? messageBoxElement.value
+    : "";
+
+  console.log("Stored message content:", messageContent);
+  console.log("Current textarea value:", currentMessageBoxValue);
+
+  // If storage is empty but textarea has content, use textarea value
+  if (
+    (!messageContent || messageContent.trim() === "") &&
+    currentMessageBoxValue
+  ) {
+    messageContent = currentMessageBoxValue;
+    // Save it to storage immediately
+    await chrome.storage.local.set({ messageContent: currentMessageBoxValue });
+    console.log("Updated message content from textarea:", messageContent);
+  }
+
+  // Helper function to check if string contains actual content (including emojis)
+  function hasContent(str) {
+    if (!str) return false;
+    // Remove whitespace and check if anything remains
+    const trimmed = str.trim();
+    if (trimmed.length === 0) return false;
+
+    // Check if the string has any visible characters (including emojis)
+    // This regex matches any non-whitespace character or emoji
+    return /\S/.test(trimmed);
+  }
+
+  // Check both stored content AND current textarea value
+  if (!hasContent(messageContent) && !hasContent(currentMessageBoxValue)) {
     Swal.fire({
       title: "No Message Found",
       text: "Please enter a message or emoji",
@@ -1938,6 +1993,14 @@ sendingBtn.addEventListener("click", async () => {
     });
     return false;
   }
+
+  // If we only have textarea value but not stored, use textarea
+  if (!hasContent(messageContent) && hasContent(currentMessageBoxValue)) {
+    messageContent = currentMessageBoxValue;
+    await chrome.storage.local.set({ messageContent: currentMessageBoxValue });
+  }
+
+  console.log("Final message content to send:", messageContent);
 
   // Verify if media is properly selected when sending order requires it
   const sendingOrder = (await fetchStorage("sendingOrder")) || "textFirst";

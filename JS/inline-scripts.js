@@ -1,3 +1,5 @@
+// File name => inline-script.js
+
 // In background.js, modify the configuration loading
 chrome.runtime.onInstalled.addListener(() => {
     const config = {

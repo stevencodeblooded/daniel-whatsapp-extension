@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////
-/////// Util
+/////// File name => background.js
 function randint(min = Number, max = Number) {
     return Math.floor(Math.random() * (max - min)) + min;
 }

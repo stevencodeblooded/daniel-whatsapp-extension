@@ -1,4 +1,5 @@
-// util functions START
+// file name => whatsapp.js
+// util functions START 
 function randint(min = Number, max = Number) {
   return Math.floor(Math.random() * (max - min)) + min;
 }
@@ -282,7 +283,6 @@ class Whatsapp {
     });
   }
 
-  // returns false if number is blocking the sender
   sendText(message, asCaption = false) {
     return new Promise((resolve) => {
       // Blocked Contact Check
@@ -319,11 +319,6 @@ class Whatsapp {
       }
 
       if (messageBox) {
-        // Clear the message box first
-        messageBox.innerHTML = "";
-        messageBox.innerText = "";
-        messageBox.textContent = "";
-
         // Focus the element first
         messageBox.focus();
         messageBox.click();
@@ -331,24 +326,24 @@ class Whatsapp {
         // Wait a moment for focus to be established
         setTimeout(() => {
           try {
-            // Clear any existing selection first
+            // Clear any existing content
+            messageBox.innerHTML = "";
+
+            // Create a text node with the full message content
+            // This preserves emojis properly
+            const textNode = document.createTextNode(message);
+            messageBox.appendChild(textNode);
+
+            // Move cursor to the end
             const selection = window.getSelection();
-            selection.removeAllRanges();
-
-            // Set the text content directly - this preserves emojis
-            messageBox.textContent = message;
-
-            // Ensure the cursor is at the end
             const range = document.createRange();
             range.selectNodeContents(messageBox);
             range.collapse(false);
             selection.removeAllRanges();
             selection.addRange(range);
 
-            // Force WhatsApp to recognize the content
-            messageBox.dispatchEvent(
-              new Event("input", { bubbles: true, cancelable: true })
-            );
+            // Trigger input events for WhatsApp to recognize the content
+            messageBox.dispatchEvent(new Event("input", { bubbles: true }));
             messageBox.dispatchEvent(
               new InputEvent("input", {
                 inputType: "insertText",
@@ -357,23 +352,24 @@ class Whatsapp {
                 cancelable: true,
               })
             );
+
+            // Force WhatsApp to update its internal state
+            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+              window.HTMLElement.prototype,
+              "textContent"
+            );
+            if (nativeInputValueSetter && nativeInputValueSetter.set) {
+              nativeInputValueSetter.set.call(messageBox, message);
+            }
           } catch (error) {
             console.error("Error setting message:", error);
-
-            // Fallback method
-            try {
-              messageBox.innerHTML = "";
-              const textNode = document.createTextNode(message);
-              messageBox.appendChild(textNode);
-              messageBox.dispatchEvent(new Event("input", { bubbles: true }));
-            } catch (fallbackError) {
-              console.error("Fallback also failed:", fallbackError);
-            }
+            resolve(false);
+            return;
           }
 
           // Wait for WhatsApp to process the input
           setTimeout(() => {
-            // Find and click the send button (only once)
+            // Find and click the send button
             let sendBtn = document.querySelector(this.sendButton);
 
             if (!sendBtn) {
@@ -427,7 +423,7 @@ class Whatsapp {
             setTimeout(() => {
               resolve(true);
             }, 1000);
-          }, 1500); // Increased delay to ensure content is processed
+          }, 1500);
         }, 300);
       } else {
         console.error("Message box not found");

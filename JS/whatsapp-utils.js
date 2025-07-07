@@ -1,3 +1,5 @@
+// File name => whatsapp-utils.js
+
 // Implement getLoggedInWhatsApp function
 async function getLoggedInWhatsApp() {
     try {

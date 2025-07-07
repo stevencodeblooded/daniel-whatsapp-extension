@@ -1,4 +1,4 @@
-// At the top of main.js
+// File name =>  of main.js
 // const API_URL =
 //   window.appConfig && window.appConfig.apiUrl
 //     ? window.appConfig.apiUrl
